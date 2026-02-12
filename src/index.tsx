@@ -59,6 +59,15 @@ export interface BatchEvent {
  */
 export type BatchingStrategy = 'all' | 'smart' | 'instant' | 'custom';
 
+export interface AffiliateAttribution {
+  clickId: string | null;
+  programId: string | null;
+  affiliateId: string | null;
+  timestamp: number | null;
+  hasAttribution: boolean;
+  source: 'deep_link' | 'stored' | 'none';
+}
+
 /**
  * Debug batch configuration
  */
@@ -93,6 +102,13 @@ class LinkzlySDK {
   private processedUrls: Map<string, number> = new Map(); // URL -> timestamp
   private lastDeepLinkData: DeepLinkData | null = null;
   private pendingAttributionUrls: Set<string> = new Set(); // URLs waiting for backend attribution
+
+  // Affiliate attribution state
+  private affiliateClickId: string | null = null;
+  private affiliateProgramId: string | null = null;
+  private affiliateAffiliateId: string | null = null;
+  private affiliateTimestamp: number | null = null;
+  private affiliateExpiry: number | null = null;
 
   /**
    * Configure the Linkzly SDK
@@ -785,6 +801,170 @@ class LinkzlySDK {
    */
   isAutoHandleDeepLinksEnabled(): boolean {
     return this.isAutoHandlingEnabled;
+  }
+
+  // ─── Affiliate Attribution ──────────────────────────────────────────────
+
+  /**
+   * Capture affiliate attribution from a URL.
+   * Extracts `lz_click_id` and stores it securely via the native SDK.
+   * Called automatically when deep links are processed if auto-handling is enabled.
+   *
+   * @param url The URL string to extract attribution from
+   * @returns true if affiliate attribution was found and stored
+   */
+  async captureAffiliateAttribution(url: string): Promise<boolean> {
+    try {
+      if (LinkzlyReactNative.captureAffiliateAttribution) {
+        const captured = await LinkzlyReactNative.captureAffiliateAttribution(url);
+        if (captured) {
+          // Sync local cache from native
+          await this._syncAffiliateCache();
+          console.log('[LinkzlySDK] Captured affiliate attribution via native SDK');
+        }
+        return captured;
+      }
+
+      // Fallback: JS-only parsing if native method unavailable
+      console.warn('[LinkzlySDK] Native affiliate methods unavailable — data will not persist across app restarts');
+      return this._captureAffiliateAttributionFallback(url);
+    } catch (error) {
+      console.error('[LinkzlySDK] Error capturing affiliate attribution:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get the current affiliate attribution data.
+   * Returns stored attribution if within the expiry window.
+   */
+  async getAffiliateAttribution(): Promise<AffiliateAttribution> {
+    try {
+      if (LinkzlyReactNative.getAffiliateAttribution) {
+        const result = await LinkzlyReactNative.getAffiliateAttribution();
+        return {
+          clickId: result?.clickId ?? null,
+          programId: result?.programId ?? null,
+          affiliateId: result?.affiliateId ?? null,
+          timestamp: result?.timestamp ?? null,
+          hasAttribution: result?.hasAttribution ?? false,
+          source: result?.source ?? 'none',
+        };
+      }
+
+      // Fallback: JS-only
+      return this._getAffiliateAttributionFallback();
+    } catch (error) {
+      console.error('[LinkzlySDK] Error getting affiliate attribution:', error);
+      return { clickId: null, programId: null, affiliateId: null, timestamp: null, hasAttribution: false, source: 'none' };
+    }
+  }
+
+  /**
+   * Get the affiliate click ID for S2S conversion tracking.
+   * This is the primary value your backend needs to attribute conversions.
+   */
+  async getAffiliateClickId(): Promise<string | null> {
+    try {
+      if (LinkzlyReactNative.getAffiliateClickId) {
+        return await LinkzlyReactNative.getAffiliateClickId();
+      }
+      return this._getAffiliateAttributionFallback().clickId;
+    } catch (error) {
+      console.error('[LinkzlySDK] Error getting affiliate click ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if there is valid (non-expired) affiliate attribution.
+   */
+  async hasAffiliateAttribution(): Promise<boolean> {
+    try {
+      if (LinkzlyReactNative.hasAffiliateAttribution) {
+        return await LinkzlyReactNative.hasAffiliateAttribution();
+      }
+      return this._getAffiliateAttributionFallback().hasAttribution;
+    } catch (error) {
+      console.error('[LinkzlySDK] Error checking affiliate attribution:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear all stored affiliate attribution data.
+   */
+  async clearAffiliateAttribution(): Promise<void> {
+    try {
+      // Clear local cache
+      this.affiliateClickId = null;
+      this.affiliateProgramId = null;
+      this.affiliateAffiliateId = null;
+      this.affiliateTimestamp = null;
+      this.affiliateExpiry = null;
+
+      if (LinkzlyReactNative.clearAffiliateAttribution) {
+        await LinkzlyReactNative.clearAffiliateAttribution();
+      }
+    } catch (error) {
+      console.error('[LinkzlySDK] Error clearing affiliate attribution:', error);
+    }
+  }
+
+  // ─── Affiliate Private Helpers ──────────────────────────────────────────
+
+  /** Sync local cache from native storage */
+  private async _syncAffiliateCache(): Promise<void> {
+    if (LinkzlyReactNative.getAffiliateAttribution) {
+      const result = await LinkzlyReactNative.getAffiliateAttribution();
+      this.affiliateClickId = result?.clickId ?? null;
+      this.affiliateProgramId = result?.programId ?? null;
+      this.affiliateAffiliateId = result?.affiliateId ?? null;
+      this.affiliateTimestamp = result?.timestamp ?? null;
+      this.affiliateExpiry = null; // Expiry managed by native
+    }
+  }
+
+  /** JS-only fallback when native bridge is unavailable */
+  private _captureAffiliateAttributionFallback(url: string): boolean {
+    try {
+      const urlParts = url.split('?');
+      if (urlParts.length < 2) return false;
+
+      const params = new URLSearchParams(urlParts[1]);
+      const clickId = params.get('lz_click_id');
+      if (!clickId) return false;
+
+      this.affiliateClickId = clickId;
+      this.affiliateProgramId = params.get('lz_program_id') || null;
+      this.affiliateAffiliateId = params.get('lz_affiliate_id') || null;
+      this.affiliateTimestamp = Math.floor(Date.now() / 1000);
+      this.affiliateExpiry = this.affiliateTimestamp + (30 * 24 * 60 * 60);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** JS-only fallback for getting attribution */
+  private _getAffiliateAttributionFallback(): AffiliateAttribution {
+    if (this.affiliateExpiry && Date.now() / 1000 > this.affiliateExpiry) {
+      this.affiliateClickId = null;
+      this.affiliateProgramId = null;
+      this.affiliateAffiliateId = null;
+      this.affiliateTimestamp = null;
+      this.affiliateExpiry = null;
+      return { clickId: null, programId: null, affiliateId: null, timestamp: null, hasAttribution: false, source: 'none' };
+    }
+
+    return {
+      clickId: this.affiliateClickId,
+      programId: this.affiliateProgramId,
+      affiliateId: this.affiliateAffiliateId,
+      timestamp: this.affiliateTimestamp,
+      hasAttribution: this.affiliateClickId !== null,
+      source: this.affiliateClickId ? 'stored' : 'none',
+    };
   }
 }
 

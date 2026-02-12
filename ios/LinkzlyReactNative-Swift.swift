@@ -494,6 +494,66 @@ public class LinkzlyReactNativeSwift: NSObject {
         rejecter("DEBUG_ONLY", "Debug methods are only available in DEBUG builds of LinkzlySDK", nil)
     }
 
+    // MARK: - Affiliate Attribution
+
+    @objc(captureAffiliateAttributionWithUrl:resolver:rejecter:)
+    public static func captureAffiliateAttribution(
+        url: String,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        guard let urlObj = URL(string: url) else {
+            resolver(false)
+            return
+        }
+        let captured = LinkzlySDK.captureAffiliateAttribution(from: urlObj)
+        resolver(captured)
+    }
+
+    @objc(getAffiliateAttributionWithResolver:rejecter:)
+    public static func getAffiliateAttribution(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let attribution = LinkzlySDK.getAffiliateAttribution()
+        let result: [String: Any] = [
+            "clickId": attribution.clickId ?? NSNull(),
+            "programId": attribution.programId ?? NSNull(),
+            "affiliateId": attribution.affiliateId ?? NSNull(),
+            "timestamp": attribution.timestamp ?? NSNull(),
+            "hasAttribution": attribution.hasAttribution,
+            "source": attribution.source.rawValue
+        ]
+        resolver(result)
+    }
+
+    @objc(getAffiliateClickIdWithResolver:rejecter:)
+    public static func getAffiliateClickId(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let clickId = LinkzlySDK.getAffiliateClickId()
+        resolver(clickId ?? NSNull())
+    }
+
+    @objc(hasAffiliateAttributionWithResolver:rejecter:)
+    public static func hasAffiliateAttribution(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let has = LinkzlySDK.hasAffiliateAttribution()
+        resolver(has)
+    }
+
+    @objc(clearAffiliateAttributionWithResolver:rejecter:)
+    public static func clearAffiliateAttribution(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.clearAffiliateAttribution()
+        resolver(["success": true])
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

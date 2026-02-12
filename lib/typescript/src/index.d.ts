@@ -31,6 +31,14 @@ export interface BatchEvent {
  * - "custom" - Same as "smart"
  */
 export type BatchingStrategy = 'all' | 'smart' | 'instant' | 'custom';
+export interface AffiliateAttribution {
+    clickId: string | null;
+    programId: string | null;
+    affiliateId: string | null;
+    timestamp: number | null;
+    hasAttribution: boolean;
+    source: 'deep_link' | 'stored' | 'none';
+}
 /**
  * Debug batch configuration
  */
@@ -55,6 +63,11 @@ declare class LinkzlySDK {
     private processedUrls;
     private lastDeepLinkData;
     private pendingAttributionUrls;
+    private affiliateClickId;
+    private affiliateProgramId;
+    private affiliateAffiliateId;
+    private affiliateTimestamp;
+    private affiliateExpiry;
     /**
      * Configure the Linkzly SDK
      * @param sdkKey Your Linkzly SDK key
@@ -255,6 +268,39 @@ declare class LinkzlySDK {
      * @returns Whether automatic handling is enabled
      */
     isAutoHandleDeepLinksEnabled(): boolean;
+    /**
+     * Capture affiliate attribution from a URL.
+     * Extracts `lz_click_id` and stores it securely via the native SDK.
+     * Called automatically when deep links are processed if auto-handling is enabled.
+     *
+     * @param url The URL string to extract attribution from
+     * @returns true if affiliate attribution was found and stored
+     */
+    captureAffiliateAttribution(url: string): Promise<boolean>;
+    /**
+     * Get the current affiliate attribution data.
+     * Returns stored attribution if within the expiry window.
+     */
+    getAffiliateAttribution(): Promise<AffiliateAttribution>;
+    /**
+     * Get the affiliate click ID for S2S conversion tracking.
+     * This is the primary value your backend needs to attribute conversions.
+     */
+    getAffiliateClickId(): Promise<string | null>;
+    /**
+     * Check if there is valid (non-expired) affiliate attribution.
+     */
+    hasAffiliateAttribution(): Promise<boolean>;
+    /**
+     * Clear all stored affiliate attribution data.
+     */
+    clearAffiliateAttribution(): Promise<void>;
+    /** Sync local cache from native storage */
+    private _syncAffiliateCache;
+    /** JS-only fallback when native bridge is unavailable */
+    private _captureAffiliateAttributionFallback;
+    /** JS-only fallback for getting attribution */
+    private _getAffiliateAttributionFallback;
 }
 /**
  * Debug utilities for testing Linkzly SDK batching behavior

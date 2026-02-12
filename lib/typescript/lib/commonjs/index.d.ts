@@ -100,6 +100,11 @@ declare class LinkzlySDK {
     processedUrls: Map<any, any>;
     lastDeepLinkData: null;
     pendingAttributionUrls: Set<any>;
+    affiliateClickId: null;
+    affiliateProgramId: null;
+    affiliateAffiliateId: null;
+    affiliateTimestamp: null;
+    affiliateExpiry: null;
     /**
      * Configure the Linkzly SDK
      * @param sdkKey Your Linkzly SDK key
@@ -297,5 +302,52 @@ declare class LinkzlySDK {
      * @returns Whether automatic handling is enabled
      */
     isAutoHandleDeepLinksEnabled(): boolean;
+    /**
+     * Capture affiliate attribution from a URL.
+     * Extracts `lz_click_id` and stores it securely via the native SDK.
+     * Called automatically when deep links are processed if auto-handling is enabled.
+     *
+     * @param url The URL string to extract attribution from
+     * @returns true if affiliate attribution was found and stored
+     */
+    captureAffiliateAttribution(url: any): Promise<any>;
+    /**
+     * Get the current affiliate attribution data.
+     * Returns stored attribution if within the expiry window.
+     */
+    getAffiliateAttribution(): Promise<{
+        clickId: any;
+        programId: any;
+        affiliateId: any;
+        timestamp: any;
+        hasAttribution: any;
+        source: any;
+    }>;
+    /**
+     * Get the affiliate click ID for S2S conversion tracking.
+     * This is the primary value your backend needs to attribute conversions.
+     */
+    getAffiliateClickId(): Promise<any>;
+    /**
+     * Check if there is valid (non-expired) affiliate attribution.
+     */
+    hasAffiliateAttribution(): Promise<any>;
+    /**
+     * Clear all stored affiliate attribution data.
+     */
+    clearAffiliateAttribution(): Promise<void>;
+    /** Sync local cache from native storage */
+    _syncAffiliateCache(): Promise<void>;
+    /** JS-only fallback when native bridge is unavailable */
+    _captureAffiliateAttributionFallback(url: any): boolean;
+    /** JS-only fallback for getting attribution */
+    _getAffiliateAttributionFallback(): {
+        clickId: null;
+        programId: null;
+        affiliateId: null;
+        timestamp: null;
+        hasAttribution: boolean;
+        source: string;
+    };
 }
 //# sourceMappingURL=index.d.ts.map

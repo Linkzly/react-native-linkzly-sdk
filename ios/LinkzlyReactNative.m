@@ -209,4 +209,37 @@ RCT_EXPORT_METHOD(debugGetConfig : (RCTPromiseResolveBlock)
   [LinkzlyReactNativeSwift debugGetConfigWithResolver:resolve rejecter:reject];
 }
 
+// MARK: - Affiliate Attribution
+
+RCT_EXPORT_METHOD(captureAffiliateAttribution : (NSString *)url resolver : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift captureAffiliateAttributionWithUrl:url
+                                                     resolver:resolve
+                                                     rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(getAffiliateAttribution : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift getAffiliateAttributionWithResolver:resolve
+                                                      rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(getAffiliateClickId : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift getAffiliateClickIdWithResolver:resolve
+                                                  rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(hasAffiliateAttribution : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift hasAffiliateAttributionWithResolver:resolve
+                                                      rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(clearAffiliateAttribution : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift clearAffiliateAttributionWithResolver:resolve
+                                                        rejecter:reject];
+}
+
 @end

@@ -1,6 +1,7 @@
 package com.linkzly.reactnative
 
 import android.content.Intent
+import android.net.Uri
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.linkzly.sdk.LinkzlySDK
@@ -386,6 +387,69 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
             promise.resolve(count)
         } catch (e: Exception) {
             promise.reject("GET_PENDING_COUNT_ERROR", e.message, e)
+        }
+    }
+
+    // ─── Affiliate Attribution ─────────────────────────────────────
+
+    @ReactMethod
+    fun captureAffiliateAttribution(urlString: String, promise: Promise) {
+        try {
+            val uri = Uri.parse(urlString)
+            val captured = LinkzlySDK.captureAffiliateAttribution(uri)
+            promise.resolve(captured)
+        } catch (e: Exception) {
+            promise.reject("AFFILIATE_CAPTURE_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getAffiliateAttribution(promise: Promise) {
+        try {
+            val attribution = LinkzlySDK.getAffiliateAttribution()
+            val result = Arguments.createMap()
+            result.putString("clickId", attribution.clickId)
+            result.putString("programId", attribution.programId)
+            result.putString("affiliateId", attribution.affiliateId)
+            attribution.timestamp?.let { result.putDouble("timestamp", it.toDouble()) }
+                ?: result.putNull("timestamp")
+            result.putBoolean("hasAttribution", attribution.hasAttribution)
+            result.putString("source", attribution.source.name.lowercase())
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("AFFILIATE_GET_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getAffiliateClickId(promise: Promise) {
+        try {
+            val clickId = LinkzlySDK.getAffiliateClickId()
+            promise.resolve(clickId)
+        } catch (e: Exception) {
+            promise.reject("AFFILIATE_CLICK_ID_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun hasAffiliateAttribution(promise: Promise) {
+        try {
+            val has = LinkzlySDK.hasAffiliateAttribution()
+            promise.resolve(has)
+        } catch (e: Exception) {
+            promise.reject("AFFILIATE_HAS_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun clearAffiliateAttribution(promise: Promise) {
+        try {
+            LinkzlySDK.clearAffiliateAttribution()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("AFFILIATE_CLEAR_ERROR", e.message, e)
         }
     }
 
