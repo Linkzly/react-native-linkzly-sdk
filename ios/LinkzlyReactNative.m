@@ -1,5 +1,9 @@
 #import "LinkzlyReactNative.h"
-#import "LinkzlyReactNative-Swift.h"
+#if __has_include(<linkzly_react_native_sdk/linkzly_react_native_sdk-Swift.h>)
+#import <linkzly_react_native_sdk/linkzly_react_native_sdk-Swift.h>
+#elif __has_include("linkzly_react_native_sdk-Swift.h")
+#import "linkzly_react_native_sdk-Swift.h"
+#endif
 
 @implementation LinkzlyReactNative
 

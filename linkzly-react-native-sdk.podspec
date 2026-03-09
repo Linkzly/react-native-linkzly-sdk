@@ -30,15 +30,17 @@ Pod::Spec.new do |s|
   # Swift/Objective-C interop configuration for React Native modules
   s.pod_target_xcconfig = {
     'SWIFT_COMPILATION_MODE' => 'wholemodule',
-    'SWIFT_OBJC_INTERFACE_HEADER_NAME' => 'LinkzlyReactNative-Swift.h',
     'SWIFT_INSTALL_OBJC_HEADER' => 'YES',
     'DEFINES_MODULE' => 'YES',
+    'CLANG_ENABLE_MODULES' => 'YES',
     'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES',
-    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_ROOT}/Headers/Public/linkzly-react-native-sdk" "${PODS_ROOT}/Headers/Public/linkzly-react-native-sdk/linkzly_react_native_sdk" "$(PODS_TARGET_SRCROOT)/ios" "$(PODS_TARGET_SRCROOT)/ios/linkzly_react_native_sdk"'
+    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_TARGET_SRCROOT}/ios"',
+    'FRAMEWORK_SEARCH_PATHS' => '$(inherited) "${PODS_XCFRAMEWORKS_BUILD_DIR}/LinkzlySDK"'
   }
-  
-  # Ensure Swift header is included in public headers
-  s.public_header_files = "ios/LinkzlyReactNative.h", "ios/linkzly_react_native_sdk/linkzly_react_native_sdk.h"
+
+  s.user_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_CONFIGURATION_BUILD_DIR}/linkzly-react-native-sdk/linkzly_react_native_sdk.framework/Headers"'
+  }
 
   # ============================================================
   # LinkzlySDK Dependency Configuration
