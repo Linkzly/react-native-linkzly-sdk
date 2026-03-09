@@ -55,7 +55,7 @@ Pod::Spec.new do |s|
   
   # This dependency will be resolved from the Podfile
   # Users must add LinkzlySDK to their Podfile (see README.md)
-  s.dependency "LinkzlySDK", "~> 1.0.0"
+  s.dependency "LinkzlySDK", "~> 1.0.4"
 
   # ============================================================
 
