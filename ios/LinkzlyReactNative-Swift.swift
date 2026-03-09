@@ -77,8 +77,6 @@ public class LinkzlyReactNativeSwift: NSObject {
         )
     }
 
-    // MARK: - Notification Handlers
-
     @objc func handleDeepLinkDataReceived(_ notification: Notification) {
         guard let deepLinkData = notification.userInfo?["deepLinkData"] as? DeepLinkData else {
             return
@@ -422,6 +420,180 @@ public class LinkzlyReactNativeSwift: NSObject {
         resolver(count)
     }
 
+    // MARK: - Gaming Tracking (Additive)
+
+    @objc(configureGamingTrackingWithApiKey:organizationId:gameId:environment:options:resolver:rejecter:)
+    public static func configureGamingTracking(
+        apiKey: String,
+        organizationId: String,
+        gameId: String,
+        environment: Int,
+        options: [String: Any]?,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let config = LinkzlyGamingOptions()
+        func intValue(_ value: Any?) -> Int? {
+            if let intValue = value as? Int { return intValue }
+            if let number = value as? NSNumber { return number.intValue }
+            if let text = value as? String, let parsed = Int(text) { return parsed }
+            return nil
+        }
+
+        func boolValue(_ value: Any?) -> Bool? {
+            if let boolValue = value as? Bool { return boolValue }
+            if let number = value as? NSNumber { return number.boolValue }
+            if let text = value as? String {
+                switch text.lowercased() {
+                case "true", "1", "yes":
+                    return true
+                case "false", "0", "no":
+                    return false
+                default:
+                    return nil
+                }
+            }
+            return nil
+        }
+
+        if let options = options {
+            if let baseURL = options["baseUrl"] as? String { config.baseURL = baseURL }
+            if let endpointPath = options["endpointPath"] as? String { config.endpointPath = endpointPath }
+            if let sdkVersion = options["sdkVersion"] as? String { config.sdkVersion = sdkVersion }
+            if let gameVersion = options["gameVersion"] as? String { config.gameVersion = gameVersion }
+            if let includeTraits = boolValue(options["includeTraits"]) { config.includeTraits = includeTraits }
+            if let debug = boolValue(options["debug"]) { config.debug = debug }
+            if let maxBatchSize = intValue(options["maxBatchSize"]) { config.maxBatchSize = maxBatchSize }
+            if let maxBatchBytes = intValue(options["maxBatchBytes"]) { config.maxBatchBytes = maxBatchBytes }
+            if let flushIntervalMs = intValue(options["flushIntervalMs"]) { config.flushIntervalMs = flushIntervalMs }
+            if let maxRetries = intValue(options["maxRetries"]) { config.maxRetries = maxRetries }
+            if let retryDelayMs = intValue(options["retryDelayMs"]) { config.retryDelayMs = retryDelayMs }
+            if let maxQueueSize = intValue(options["maxQueueSize"]) { config.maxQueueSize = maxQueueSize }
+            if let sessionTimeoutMs = intValue(options["sessionTimeoutMs"]) { config.sessionTimeoutMs = sessionTimeoutMs }
+            if let autoSessionTracking = boolValue(options["autoSessionTracking"]) { config.autoSessionTracking = autoSessionTracking }
+            if let signingSecret = options["signingSecret"] as? String { config.signingSecret = signingSecret }
+        }
+
+        let env: Environment
+        switch environment {
+        case 1: env = .staging
+        case 2: env = .development
+        default: env = .production
+        }
+
+        LinkzlySDK.configureGamingTracking(
+            apiKey: apiKey,
+            organizationId: organizationId,
+            gameId: gameId,
+            environment: env,
+            options: config
+        )
+
+        resolver(["success": true])
+    }
+
+    @objc(identifyGamingPlayerWithPlayerId:traits:resolver:rejecter:)
+    public static func identifyGamingPlayer(
+        playerId: String,
+        traits: [String: Any]?,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.identifyGamingPlayer(playerId, traits: traits)
+        resolver(["success": true])
+    }
+
+    @objc(trackGamingEventWithEventType:data:immediate:resolver:rejecter:)
+    public static func trackGamingEvent(
+        eventType: String,
+        data: [String: Any]?,
+        immediate: Bool,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        if immediate {
+            LinkzlySDK.trackGamingEventImmediate(eventType, data: data)
+        } else {
+            LinkzlySDK.trackGamingEvent(eventType, data: data)
+        }
+        resolver(["success": true])
+    }
+
+    @objc(flushGamingEventsWithResolver:rejecter:)
+    public static func flushGamingEvents(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.flushGamingEvents(.manualFlush) { success, error in
+            if success {
+                resolver(["success": true])
+            } else {
+                rejecter("GAMING_FLUSH_ERROR", error?.localizedDescription ?? "Flush failed", error)
+            }
+        }
+    }
+
+    @objc(startGamingSessionWithResolver:rejecter:)
+    public static func startGamingSession(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.startGamingSession()
+        resolver(["success": true])
+    }
+
+    @objc(endGamingSessionWithResolver:rejecter:)
+    public static func endGamingSession(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.endGamingSession()
+        resolver(["success": true])
+    }
+
+    @objc(setGamingAttributionWithClickId:deferredDeepLink:metadata:resolver:rejecter:)
+    public static func setGamingAttribution(
+        clickId: String?,
+        deferredDeepLink: String?,
+        metadata: [String: Any]?,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.setGamingAttribution(clickId: clickId, deferredDeepLink: deferredDeepLink, metadata: metadata)
+        resolver(["success": true])
+    }
+
+    @objc(clearGamingAttributionWithResolver:rejecter:)
+    public static func clearGamingAttribution(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.clearGamingAttribution()
+        resolver(["success": true])
+    }
+
+    @objc(resetGamingTrackingWithResolver:rejecter:)
+    public static func resetGamingTracking(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.resetGamingTracking()
+        resolver(["success": true])
+    }
+
+    @objc(getGamingStatusWithResolver:rejecter:)
+    public static func getGamingStatus(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.getGamingStatus { status in
+            resolver([
+                "pendingEventCount": status.pendingEventCount,
+                "hasInflightBatch": status.hasInflightBatch
+            ])
+        }
+    }
+
     // MARK: - Debug APIs (Only available in DEBUG builds)
 
     @objc(debugSetBatchingStrategyWithStrategy:resolver:rejecter:)
@@ -492,6 +664,26 @@ public class LinkzlyReactNativeSwift: NSObject {
     ) {
         // Debug methods not available when using Release XCFramework
         rejecter("DEBUG_ONLY", "Debug methods are only available in DEBUG builds of LinkzlySDK", nil)
+    }
+
+    // MARK: - Push Notification Support
+
+    @objc(initializePushWithResolver:rejecter:)
+    public static func initializePush(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let result = LinkzlySDK.initializePush()
+        resolver(result)
+    }
+
+    @objc(disablePushWithResolver:rejecter:)
+    public static func disablePush(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let result = LinkzlySDK.disablePush()
+        resolver(result)
     }
 
     // MARK: - Affiliate Attribution

@@ -119,14 +119,14 @@ declare class LinkzlySDK {
     isAutoHandlingEnabled: boolean;
     isConfigured: boolean;
     pendingUrl: null;
-    processedUrls: Map<any, any>;
-    lastDeepLinkData: null;
-    pendingAttributionUrls: Set<any>;
     affiliateClickId: null;
     affiliateProgramId: null;
     affiliateAffiliateId: null;
     affiliateTimestamp: null;
     affiliateExpiry: null;
+    processedUrls: Map<any, any>;
+    lastDeepLinkData: null;
+    pendingAttributionUrls: Set<any>;
     /**
      * Configure the Linkzly SDK
      * @param sdkKey Your Linkzly SDK key
@@ -141,8 +141,8 @@ declare class LinkzlySDK {
      */
     handleUniversalLink(url: any): Promise<any>;
     /**
-     * Track an install event
-     * @returns Deep link data if available
+     * Track an install event.
+     * @returns Deep link data when attribution is available; null for organic installs or when the backend has no match.
      */
     trackInstall(): Promise<any>;
     /**
@@ -185,6 +185,29 @@ declare class LinkzlySDK {
      * @returns Number of events waiting to be sent
      */
     getPendingEventCount(): Promise<any>;
+    /**
+     * Configure additive Gaming Tracking module.
+     * Existing MMP/deep-linking behavior remains unchanged.
+     */
+    configureGamingTracking(apiKey: any, organizationId: any, gameId: any, environment?: any, options?: {}): Promise<void>;
+    /**
+     * Set or update gaming player identity.
+     */
+    identifyGamingPlayer(playerId: any, traits: any): Promise<void>;
+    /**
+     * Track a gaming event through the new gaming pipeline.
+     */
+    trackGamingEvent(eventType: any, data?: {}, immediate?: boolean): Promise<void>;
+    /**
+     * Force flush gaming events.
+     */
+    flushGamingEvents(): Promise<void>;
+    startGamingSession(): Promise<void>;
+    endGamingSession(): Promise<void>;
+    setGamingAttribution(clickId: any, deferredDeepLink: any, metadata: any): Promise<void>;
+    clearGamingAttribution(): Promise<void>;
+    resetGamingTracking(): Promise<void>;
+    getGamingStatus(): Promise<any>;
     /**
      * Set the user ID for attribution
      * @param userID User identifier
@@ -324,6 +347,20 @@ declare class LinkzlySDK {
      * @returns Whether automatic handling is enabled
      */
     isAutoHandleDeepLinksEnabled(): boolean;
+    /**
+     * Subscribe to the Linkzly broadcast FCM topic for push campaigns.
+     * Requires Firebase Cloud Messaging to be integrated in your app.
+     * Uses runtime reflection so Firebase is NOT a compile dependency of this SDK.
+     *
+     * @returns true if subscription was initiated, false if Firebase Messaging is not available
+     */
+    initializePush(): Promise<any>;
+    /**
+     * Unsubscribe from the Linkzly broadcast FCM topic.
+     *
+     * @returns true if unsubscription was initiated, false if Firebase Messaging is not available
+     */
+    disablePush(): Promise<any>;
     /**
      * Capture affiliate attribution from a URL.
      * Extracts `lz_click_id` and stores it securely via the native SDK.

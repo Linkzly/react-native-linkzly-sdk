@@ -77,6 +77,29 @@ export interface DebugBatchConfig {
   flushInterval?: number;
 }
 
+export interface GamingTrackingOptions {
+  baseUrl?: string;
+  endpointPath?: string;
+  sdkVersion?: string;
+  gameVersion?: string;
+  includeTraits?: boolean;
+  debug?: boolean;
+  maxBatchSize?: number;
+  maxBatchBytes?: number;
+  flushIntervalMs?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  maxQueueSize?: number;
+  sessionTimeoutMs?: number;
+  autoSessionTracking?: boolean;
+  signingSecret?: string;
+}
+
+export interface GamingTrackingStatus {
+  pendingEventCount: number;
+  hasInflightBatch: boolean;
+}
+
 // Event listener types
 export type DeepLinkListener = (data: DeepLinkData) => void;
 export type UniversalLinkListener = (data: UniversalLinkEvent) => void;
@@ -99,9 +122,6 @@ class LinkzlySDK {
 
   // Deep link processing state
   private pendingUrl: string | null = null;
-  private processedUrls: Map<string, number> = new Map(); // URL -> timestamp
-  private lastDeepLinkData: DeepLinkData | null = null;
-  private pendingAttributionUrls: Set<string> = new Set(); // URLs waiting for backend attribution
 
   // Affiliate attribution state
   private affiliateClickId: string | null = null;
@@ -109,6 +129,9 @@ class LinkzlySDK {
   private affiliateAffiliateId: string | null = null;
   private affiliateTimestamp: number | null = null;
   private affiliateExpiry: number | null = null;
+  private processedUrls: Map<string, number> = new Map(); // URL -> timestamp
+  private lastDeepLinkData: DeepLinkData | null = null;
+  private pendingAttributionUrls: Set<string> = new Set(); // URLs waiting for backend attribution
 
   /**
    * Configure the Linkzly SDK
@@ -166,8 +189,8 @@ class LinkzlySDK {
   }
 
   /**
-   * Track an install event
-   * @returns Deep link data if available
+   * Track an install event.
+   * @returns Deep link data when attribution is available; null for organic installs or when the backend has no match.
    */
   async trackInstall(): Promise<DeepLinkData | null> {
     return await LinkzlyReactNative.trackInstall();
@@ -236,6 +259,83 @@ class LinkzlySDK {
    */
   async getPendingEventCount(): Promise<number> {
     return await LinkzlyReactNative.getPendingEventCount();
+  }
+
+  /**
+   * Configure additive Gaming Tracking module.
+   * Existing MMP/deep-linking behavior remains unchanged.
+   */
+  async configureGamingTracking(
+    apiKey: string,
+    organizationId: string,
+    gameId: string,
+    environment: Environment = Environment.PRODUCTION,
+    options: GamingTrackingOptions = {}
+  ): Promise<void> {
+    await LinkzlyReactNative.configureGamingTracking(
+      apiKey,
+      organizationId,
+      gameId,
+      environment,
+      options
+    );
+  }
+
+  /**
+   * Set or update gaming player identity.
+   */
+  async identifyGamingPlayer(playerId: string, traits?: Record<string, any>): Promise<void> {
+    await LinkzlyReactNative.identifyGamingPlayer(playerId, traits || null);
+  }
+
+  /**
+   * Track a gaming event through the new gaming pipeline.
+   */
+  async trackGamingEvent(
+    eventType: string,
+    data: Record<string, any> = {},
+    immediate = false
+  ): Promise<void> {
+    await LinkzlyReactNative.trackGamingEvent(eventType, data, immediate);
+  }
+
+  /**
+   * Force flush gaming events.
+   */
+  async flushGamingEvents(): Promise<void> {
+    await LinkzlyReactNative.flushGamingEvents();
+  }
+
+  async startGamingSession(): Promise<void> {
+    await LinkzlyReactNative.startGamingSession();
+  }
+
+  async endGamingSession(): Promise<void> {
+    await LinkzlyReactNative.endGamingSession();
+  }
+
+  async setGamingAttribution(
+    clickId?: string,
+    deferredDeepLink?: string,
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    await LinkzlyReactNative.setGamingAttribution(
+      clickId ?? null,
+      deferredDeepLink ?? null,
+      metadata || null
+    );
+  }
+
+  async clearGamingAttribution(): Promise<void> {
+    await LinkzlyReactNative.clearGamingAttribution();
+  }
+
+  async resetGamingTracking(): Promise<void> {
+    await LinkzlyReactNative.resetGamingTracking();
+  }
+
+  async getGamingStatus(): Promise<GamingTrackingStatus> {
+    return await LinkzlyReactNative.getGamingStatus();
   }
 
   /**
@@ -597,6 +697,10 @@ class LinkzlySDK {
       // This enriches data with attribution from backend if available
       const enrichedData = await this.enrichWithBackendAttribution(mergedData, url);
 
+      // Note: Affiliate attribution is NOT auto-captured here.
+      // The client app must call captureAffiliateAttribution(url) explicitly
+      // in its deep link handler, consistent with the iOS and Android native SDKs.
+
       // Step 5: Notify listeners once with final data
       this.notifyDeepLinkListeners(enrichedData);
 
@@ -801,6 +905,28 @@ class LinkzlySDK {
    */
   isAutoHandleDeepLinksEnabled(): boolean {
     return this.isAutoHandlingEnabled;
+  }
+
+  // ─── Push Notification Support ──────────────────────────────────────────
+
+  /**
+   * Subscribe to the Linkzly broadcast FCM topic for push campaigns.
+   * Requires Firebase Cloud Messaging to be integrated in your app.
+   * Uses runtime reflection so Firebase is NOT a compile dependency of this SDK.
+   *
+   * @returns true if subscription was initiated, false if Firebase Messaging is not available
+   */
+  async initializePush(): Promise<boolean> {
+    return await LinkzlyReactNative.initializePush();
+  }
+
+  /**
+   * Unsubscribe from the Linkzly broadcast FCM topic.
+   *
+   * @returns true if unsubscription was initiated, false if Firebase Messaging is not available
+   */
+  async disablePush(): Promise<boolean> {
+    return await LinkzlyReactNative.disablePush();
   }
 
   // ─── Affiliate Attribution ──────────────────────────────────────────────

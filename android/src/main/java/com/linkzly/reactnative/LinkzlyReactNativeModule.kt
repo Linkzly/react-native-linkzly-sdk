@@ -5,6 +5,7 @@ import android.net.Uri
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.linkzly.sdk.LinkzlySDK
+import com.linkzly.sdk.gaming.LinkzlyGamingTracking
 import com.linkzly.sdk.models.DeepLinkData
 import com.linkzly.sdk.models.Environment
 import com.linkzly.sdk.utils.LinkzlySDKDebug
@@ -387,6 +388,213 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
             promise.resolve(count)
         } catch (e: Exception) {
             promise.reject("GET_PENDING_COUNT_ERROR", e.message, e)
+        }
+    }
+
+    // MARK: - Gaming Tracking (Additive)
+
+    @ReactMethod
+    fun configureGamingTracking(
+        apiKey: String,
+        organizationId: String,
+        gameId: String,
+        environment: Int,
+        options: ReadableMap?,
+        promise: Promise
+    ) {
+        try {
+            val envBaseUrl = when (environment) {
+                1 -> "https://linkzly-gaming-tracking-staging.mec-fahid.workers.dev"
+                2 -> "https://linkzly-gaming-tracking-development.mec-fahid.workers.dev"
+                else -> "https://gaming.linkzly.com"
+            }
+
+            val map = options?.toHashMap() ?: emptyMap<String, Any>()
+            fun asInt(value: Any?, fallback: Int): Int {
+                return when (value) {
+                    is Number -> value.toInt()
+                    is String -> value.toIntOrNull() ?: fallback
+                    else -> fallback
+                }
+            }
+
+            fun asBool(value: Any?, fallback: Boolean): Boolean {
+                return when (value) {
+                    is Boolean -> value
+                    is Number -> value.toInt() != 0
+                    is String -> when (value.lowercase()) {
+                        "true", "1", "yes" -> true
+                        "false", "0", "no" -> false
+                        else -> fallback
+                    }
+                    else -> fallback
+                }
+            }
+
+            val config = LinkzlyGamingTracking.GamingOptions(
+                apiKey = apiKey,
+                organizationId = organizationId,
+                gameId = gameId,
+                baseUrl = map["baseUrl"] as? String ?: envBaseUrl,
+                endpointPath = map["endpointPath"] as? String ?: "/api/v1/gaming/events",
+                sdkVersion = map["sdkVersion"] as? String ?: "1.0.0",
+                gameVersion = map["gameVersion"] as? String ?: "",
+                includeTraits = asBool(map["includeTraits"], false),
+                debug = asBool(map["debug"], false),
+                maxBatchSize = asInt(map["maxBatchSize"], 100),
+                maxBatchBytes = asInt(map["maxBatchBytes"], 512 * 1024),
+                flushIntervalMs = asInt(map["flushIntervalMs"], 5000),
+                maxRetries = asInt(map["maxRetries"], 3),
+                retryDelayMs = asInt(map["retryDelayMs"], 1000),
+                maxQueueSize = asInt(map["maxQueueSize"], 10000),
+                sessionTimeoutMs = asInt(map["sessionTimeoutMs"], 30 * 60 * 1000),
+                autoSessionTracking = asBool(map["autoSessionTracking"], true),
+                signingSecret = map["signingSecret"] as? String
+            )
+
+            LinkzlyGamingTracking.configure(reactAppContext, config)
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_CONFIG_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun identifyGamingPlayer(playerId: String, traits: ReadableMap?, promise: Promise) {
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val traitMap = traits?.toHashMap() as? Map<String, Any>
+            LinkzlyGamingTracking.identify(playerId, traitMap)
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_IDENTIFY_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun trackGamingEvent(eventType: String, data: ReadableMap?, immediate: Boolean, promise: Promise) {
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val payload = (data?.toHashMap() as? Map<String, Any>) ?: emptyMap()
+            LinkzlyGamingTracking.track(eventType, payload, immediateFlush = immediate)
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_TRACK_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun flushGamingEvents(promise: Promise) {
+        LinkzlyGamingTracking.flush(LinkzlyGamingTracking.LinkzlyGamingFlushReason.MANUAL_FLUSH) { success, error ->
+            if (success) {
+                val result = Arguments.createMap()
+                result.putBoolean("success", true)
+                promise.resolve(result)
+            } else {
+                promise.reject("GAMING_FLUSH_ERROR", error ?: "Gaming flush failed", null)
+            }
+        }
+    }
+
+    @ReactMethod
+    fun startGamingSession(promise: Promise) {
+        try {
+            LinkzlyGamingTracking.startSession()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_SESSION_START_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun endGamingSession(promise: Promise) {
+        try {
+            LinkzlyGamingTracking.endSession()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_SESSION_END_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun setGamingAttribution(clickId: String?, deferredDeepLink: String?, metadata: ReadableMap?, promise: Promise) {
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val payload = metadata?.toHashMap() as? Map<String, Any>
+            LinkzlyGamingTracking.setAttribution(clickId, deferredDeepLink, payload)
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_ATTRIBUTION_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun clearGamingAttribution(promise: Promise) {
+        try {
+            LinkzlyGamingTracking.clearAttribution()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_ATTRIBUTION_CLEAR_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun resetGamingTracking(promise: Promise) {
+        try {
+            LinkzlyGamingTracking.reset()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_RESET_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getGamingStatus(promise: Promise) {
+        try {
+            val result = Arguments.createMap()
+            result.putInt("pendingEventCount", LinkzlyGamingTracking.getPendingCount())
+            result.putBoolean("hasInflightBatch", LinkzlyGamingTracking.hasInflightBatch())
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GAMING_STATUS_ERROR", e.message, e)
+        }
+    }
+
+    // ─── Push Notification Support ─────────────────────────────────
+
+    @ReactMethod
+    fun initializePush(promise: Promise) {
+        try {
+            val result = LinkzlySDK.initializePush()
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("INIT_PUSH_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun disablePush(promise: Promise) {
+        try {
+            val result = LinkzlySDK.disablePush()
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("DISABLE_PUSH_ERROR", e.message, e)
         }
     }
 

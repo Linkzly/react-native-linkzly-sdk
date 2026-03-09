@@ -160,6 +160,88 @@ RCT_EXPORT_METHOD(getPendingEventCount : (RCTPromiseResolveBlock)
                                                    rejecter:reject];
 }
 
+// MARK: - Gaming Tracking (Additive)
+
+RCT_EXPORT_METHOD(configureGamingTracking : (NSString *)apiKey
+                      organizationId : (NSString *)organizationId
+                      gameId : (NSString *)gameId
+                      environment : (NSInteger)environment
+                      options : (NSDictionary *)options
+                      resolver : (RCTPromiseResolveBlock)resolve
+                      rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift configureGamingTrackingWithApiKey:apiKey
+                                               organizationId:organizationId
+                                                       gameId:gameId
+                                                  environment:environment
+                                                      options:options
+                                                     resolver:resolve
+                                                     rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(identifyGamingPlayer : (NSString *)playerId
+                      traits : (NSDictionary *)traits
+                      resolver : (RCTPromiseResolveBlock)resolve
+                      rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift identifyGamingPlayerWithPlayerId:playerId
+                                                     traits:traits
+                                                   resolver:resolve
+                                                   rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(trackGamingEvent : (NSString *)eventType
+                      data : (NSDictionary *)data
+                      immediate : (BOOL)immediate
+                      resolver : (RCTPromiseResolveBlock)resolve
+                      rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift trackGamingEventWithEventType:eventType
+                                                    data:data
+                                               immediate:immediate
+                                                resolver:resolve
+                                                rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(flushGamingEvents : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift flushGamingEventsWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(startGamingSession : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift startGamingSessionWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(endGamingSession : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift endGamingSessionWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(setGamingAttribution : (NSString *)clickId
+                      deferredDeepLink : (NSString *)deferredDeepLink
+                      metadata : (NSDictionary *)metadata
+                      resolver : (RCTPromiseResolveBlock)resolve
+                      rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift setGamingAttributionWithClickId:clickId
+                                          deferredDeepLink:deferredDeepLink
+                                                  metadata:metadata
+                                                  resolver:resolve
+                                                  rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(clearGamingAttribution : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift clearGamingAttributionWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(resetGamingTracking : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift resetGamingTrackingWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(getGamingStatus : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift getGamingStatusWithResolver:resolve rejecter:reject];
+}
+
 // MARK: - Debug APIs (Only available in DEBUG builds)
 
 RCT_EXPORT_METHOD(debugSetBatchingStrategy : (NSString *)strategy resolver : (
@@ -211,6 +293,18 @@ RCT_EXPORT_METHOD(debugPrintConfig : (RCTPromiseResolveBlock)
 RCT_EXPORT_METHOD(debugGetConfig : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift debugGetConfigWithResolver:resolve rejecter:reject];
+}
+
+// MARK: - Push Notification Support
+
+RCT_EXPORT_METHOD(initializePush : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift initializePushWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(disablePush : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift disablePushWithResolver:resolve rejecter:reject];
 }
 
 // MARK: - Affiliate Attribution
