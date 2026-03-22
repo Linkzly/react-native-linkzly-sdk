@@ -377,24 +377,6 @@ public class LinkzlyReactNativeSwift: NSObject {
         resolver(status ?? NSNull())
     }
 
-    @objc(startSessionWithResolver:rejecter:)
-    public static func startSession(
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
-    ) {
-        LinkzlySDK.startSession()
-        resolver(["success": true])
-    }
-
-    @objc(endSessionWithResolver:rejecter:)
-    public static func endSession(
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
-    ) {
-        LinkzlySDK.endSession()
-        resolver(["success": true])
-    }
-
     // MARK: - Flush Events and Pending Count
 
     @objc(flushEventsWithResolver:rejecter:)

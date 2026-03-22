@@ -237,16 +237,6 @@ declare class LinkzlySDK {
      */
     isAdvertisingTrackingEnabled(): Promise<any>;
     /**
-     * Manually start a new session
-     * Useful for manual session management or non-standard app lifecycles
-     */
-    startSession(): Promise<void>;
-    /**
-     * Manually end the current session
-     * Useful for manual session management or non-standard app lifecycles
-     */
-    endSession(): Promise<void>;
-    /**
      * Get the current IDFA value (iOS only)
      * Returns null if ATT not authorized, advertising tracking disabled, or on Android
      * @returns IDFA string or null

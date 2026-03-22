@@ -335,30 +335,6 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
         }
     }
 
-    @ReactMethod
-    fun startSession(promise: Promise) {
-        try {
-            LinkzlySDK.startSession()
-            val result = Arguments.createMap()
-            result.putBoolean("success", true)
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.reject("START_SESSION_ERROR", e.message, e)
-        }
-    }
-
-    @ReactMethod
-    fun endSession(promise: Promise) {
-        try {
-            LinkzlySDK.endSession()
-            val result = Arguments.createMap()
-            result.putBoolean("success", true)
-            promise.resolve(result)
-        } catch (e: Exception) {
-            promise.reject("END_SESSION_ERROR", e.message, e)
-        }
-    }
-
     // MARK: - Flush Events and Pending Count
 
     @ReactMethod

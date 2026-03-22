@@ -32,6 +32,26 @@ LinkzlySDK is a React Native wrapper for deep linking and attribution tracking. 
 | Android SDK | API 21+ | API 33+ |
 | Kotlin | 1.8+ | 1.9+ |
 
+## Prerequisites
+
+Before integrating the SDK, set up your app in the Linkzly Console:
+
+1. Go to **Dashboard > Apps** and click "Register App"
+2. Enter your iOS **Bundle ID** and/or Android **Package Name**
+3. Choose a verification method (Hosted recommended for quick start)
+4. Copy your **SDK Key** from the post-creation wizard or from Manage App > Overview > SDK Configuration
+
+Your SDK key starts with `slk_` and uniquely identifies your app.
+
+## Getting Your SDK Key
+
+Your SDK key (`slk_` prefix) authenticates your app with Linkzly's servers. You can find it in:
+
+- **Post-creation wizard**: Displayed prominently right after creating your app
+- **Dashboard > Apps > Manage App > Overview > SDK Configuration**: Click the eye icon to reveal, or copy directly
+
+> **Note**: Each app has a unique SDK key. Do not share keys between different apps.
+
 ## Installation
 
 ### npm / yarn
@@ -49,7 +69,7 @@ yarn add @linkzly/react-native-sdk
 1. Add LinkzlySDK to your `Podfile` (before `use_native_modules!`):
 
 ```ruby
-pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.0'
+pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.3'
 ```
 
 2. Install CocoaPods dependencies:

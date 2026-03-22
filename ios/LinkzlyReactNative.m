@@ -137,16 +137,6 @@ RCT_EXPORT_METHOD(getATTStatus : (RCTPromiseResolveBlock)
   [LinkzlyReactNativeSwift getATTStatusWithResolver:resolve rejecter:reject];
 }
 
-RCT_EXPORT_METHOD(startSession : (RCTPromiseResolveBlock)
-                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
-  [LinkzlyReactNativeSwift startSessionWithResolver:resolve rejecter:reject];
-}
-
-RCT_EXPORT_METHOD(endSession : (RCTPromiseResolveBlock)
-                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
-  [LinkzlyReactNativeSwift endSessionWithResolver:resolve rejecter:reject];
-}
-
 // MARK: - Flush Events and Pending Count
 
 RCT_EXPORT_METHOD(flushEvents : (RCTPromiseResolveBlock)

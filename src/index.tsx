@@ -436,22 +436,6 @@ class LinkzlySDK {
   }
 
   /**
-   * Manually start a new session
-   * Useful for manual session management or non-standard app lifecycles
-   */
-  async startSession(): Promise<void> {
-    await LinkzlyReactNative.startSession();
-  }
-
-  /**
-   * Manually end the current session
-   * Useful for manual session management or non-standard app lifecycles
-   */
-  async endSession(): Promise<void> {
-    await LinkzlyReactNative.endSession();
-  }
-
-  /**
    * Get the current IDFA value (iOS only)
    * Returns null if ATT not authorized, advertising tracking disabled, or on Android
    * @returns IDFA string or null
