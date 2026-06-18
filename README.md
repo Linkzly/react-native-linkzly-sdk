@@ -521,9 +521,54 @@ if (clickId) {
 
 ## Push Notification Support
 
-Linkzly SDK can enable push notification campaigns by subscribing your app to receive broadcast notifications. This requires Firebase Cloud Messaging to be set up in your app.
+The SDK exposes **two independent push features** — most apps that target individual users want the first one:
 
-### Prerequisites
+| Feature | Methods | What it does | When to use |
+|---|---|---|---|
+| **Device token registration** | `setNotificationToken` / `getNotificationToken` / `hasNotificationToken` / `clearNotificationToken` | Registers this device's **APNs/FCM token** in Linkzly's device registry so campaigns can target the specific device/user. Works with **any** push provider. | You want Linkzly to send (or target) notifications to individual devices/users. |
+| **Broadcast topic subscription** | `initializePush` / `disablePush` | Subscribes the device to a shared **FCM broadcast topic** for "send to All" campaigns. FCM-only, via runtime reflection. | You only need broadcast-to-everyone campaigns and use Firebase Cloud Messaging. |
+
+The two are not mutually exclusive, but they solve different problems. Start with **device token registration** below.
+
+> **Requires native SDK support.** `setNotificationToken` and the related methods bridge to the native iOS/Android SDKs. They need **iOS `LinkzlySDK ≥ 1.0.3`** (CocoaPods) and **Android `com.github.Linkzly:linkzly-android-sdk ≥ 1.0.5`** (JitPack) — both of which this React Native package already pins. Earlier native versions do not include these methods.
+
+### Registering a device push token
+
+`setNotificationToken` records the device's push token in Linkzly's device registry. Capture the token from your push library (e.g. `@react-native-firebase/messaging`) and forward it — the native SDK throttles network calls (it only re-registers when the token, user, or app version changes, or after 7 days), so it is safe to call on every launch.
+
+```typescript
+import messaging from '@react-native-firebase/messaging';
+import LinkzlySDK from '@linkzly/react-native-sdk';
+
+// On startup and whenever the token refreshes
+const token = await messaging().getToken();
+await LinkzlySDK.setNotificationToken(token);
+
+messaging().onTokenRefresh(async (newToken) => {
+  await LinkzlySDK.setNotificationToken(newToken);
+});
+```
+
+**Binding to a user:** when you call `LinkzlySDK.setUserID(...)`, the native SDK automatically re-registers the stored token against the new user id, so campaigns can target that user.
+
+**On logout / notifications disabled:** clear the token. This removes it locally and revokes it server-side.
+
+```typescript
+await LinkzlySDK.clearNotificationToken();
+```
+
+**Inspecting state:**
+
+```typescript
+const token = await LinkzlySDK.getNotificationToken(); // string | null
+const has = await LinkzlySDK.hasNotificationToken();    // boolean
+```
+
+### Broadcast topic subscription (optional, FCM-only)
+
+Use this only if you want "send to All" broadcast campaigns and your app uses Firebase Cloud Messaging.
+
+#### Prerequisites
 
 - Firebase Cloud Messaging integrated in your React Native app (e.g., `@react-native-firebase/messaging`)
 - Linkzly SDK configured and initialized
@@ -532,7 +577,7 @@ Linkzly SDK can enable push notification campaigns by subscribing your app to re
 >
 > If your app uses **OneSignal**, **Braze**, or another push provider, you do **not** need to call these methods. Your provider's own SDK handles device registration and subscriptions. The Linkzly backend supports multiple push providers and will deliver campaigns through whichever provider is configured in the Linkzly Console.
 
-### Setup
+#### Setup
 
 Call `initializePush()` once on app startup, after both Firebase and Linkzly SDK are configured:
 
@@ -550,20 +595,20 @@ if (success) {
 }
 ```
 
-### Disabling Push
+#### Disabling Push
 
 ```typescript
 await LinkzlySDK.disablePush();
 ```
 
-### How It Works
+#### How It Works
 
 - `initializePush()` subscribes the device to a Linkzly broadcast topic via FCM
 - No Firebase dependency is added to the Linkzly SDK itself — it uses runtime reflection
 - If Firebase Messaging is not available, the method returns `false` safely (no crash)
 - Push campaigns sent from Linkzly Console targeting "All" users are delivered via this topic
 
-### Troubleshooting
+#### Troubleshooting
 
 - `initializePush()` returns `false` — Firebase Messaging not found in your app
 - Notifications not received — Ensure Firebase is initialized before calling `initializePush()`
@@ -906,6 +951,10 @@ When running in `Environment.DEVELOPMENT`, you should see:
 
 | Method | Returns | Description |
 |--------|---------|-------------|
+| `setNotificationToken(token)` | `Promise<void>` | Register this device's APNs/FCM token in Linkzly's device registry (throttled) |
+| `getNotificationToken()` | `Promise<string \| null>` | Get the currently stored push token |
+| `hasNotificationToken()` | `Promise<boolean>` | Whether a push token is stored |
+| `clearNotificationToken()` | `Promise<void>` | Clear the token locally and revoke it server-side (logout) |
 | `initializePush()` | `Promise<boolean>` | Subscribe to FCM broadcast topic |
 | `disablePush()` | `Promise<boolean>` | Unsubscribe from FCM topic |
 

@@ -209,6 +209,28 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun trackRefund(parameters: ReadableMap?, promise: Promise) {
+        try {
+            val params = parameters?.toHashMap()?.mapValues { it.value ?: "" }?.map { it.key to it.value }?.toMap() ?: emptyMap<String, Any>()
+
+            LinkzlySDK.trackRefund(params) { result ->
+                result.fold(
+                    onSuccess = { success ->
+                        val response = Arguments.createMap()
+                        response.putBoolean("success", success)
+                        promise.resolve(response)
+                    },
+                    onFailure = { error ->
+                        promise.reject("TRACK_REFUND_ERROR", error.message, error)
+                    }
+                )
+            }
+        } catch (e: Exception) {
+            promise.reject("TRACK_REFUND_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
     fun trackEventBatch(events: ReadableArray, promise: Promise) {
         try {
             val eventList = mutableListOf<Map<String, Any>>()
@@ -254,6 +276,48 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
             promise.resolve(userID)
         } catch (e: Exception) {
             promise.reject("GET_USER_ID_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun setNotificationToken(token: String, promise: Promise) {
+        try {
+            LinkzlySDK.setNotificationToken(token)
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("SET_NOTIFICATION_TOKEN_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun getNotificationToken(promise: Promise) {
+        try {
+            promise.resolve(LinkzlySDK.getNotificationToken())
+        } catch (e: Exception) {
+            promise.reject("GET_NOTIFICATION_TOKEN_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun hasNotificationToken(promise: Promise) {
+        try {
+            promise.resolve(LinkzlySDK.hasNotificationToken())
+        } catch (e: Exception) {
+            promise.reject("HAS_NOTIFICATION_TOKEN_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun clearNotificationToken(promise: Promise) {
+        try {
+            LinkzlySDK.clearNotificationToken()
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("CLEAR_NOTIFICATION_TOKEN_ERROR", e.message, e)
         }
     }
 
@@ -380,8 +444,8 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
     ) {
         try {
             val envBaseUrl = when (environment) {
-                1 -> "https://linkzly-gaming-tracking-staging.mec-fahid.workers.dev"
-                2 -> "https://linkzly-gaming-tracking-development.mec-fahid.workers.dev"
+                1 -> "https://linkzly-gaming-tracking-staging.webmaster-linkzly.workers.dev"
+                2 -> "https://linkzly-gaming-tracking-development.webmaster-linkzly.workers.dev"
                 else -> "https://gaming.linkzly.com"
             }
 

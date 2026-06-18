@@ -227,6 +227,16 @@ class LinkzlySDK {
   }
 
   /**
+   * Track a refund of a prior purchase
+   * @param parameters Refund parameters (revenue, currency, and the original transactionId)
+   */
+  async trackRefund(
+    parameters?: EventParameters
+  ): Promise<void> {
+    await LinkzlyReactNative.trackRefund(parameters || {});
+  }
+
+  /**
    * Track multiple events in a batch
    * @param events Array of events to track
    */
@@ -352,6 +362,39 @@ class LinkzlySDK {
    */
   async getUserID(): Promise<string | null> {
     return await LinkzlyReactNative.getUserID();
+  }
+
+  /**
+   * Register a push notification device token (APNs on iOS, FCM on Android) with
+   * Linkzly's device registry. Safe to call on every launch — the native SDK throttles
+   * network calls and only registers when something meaningful changed.
+   * @param token The device push token
+   */
+  async setNotificationToken(token: string): Promise<void> {
+    await LinkzlyReactNative.setNotificationToken(token);
+  }
+
+  /**
+   * Get the currently stored push notification token, if any.
+   * @returns The token or null
+   */
+  async getNotificationToken(): Promise<string | null> {
+    return await LinkzlyReactNative.getNotificationToken();
+  }
+
+  /**
+   * Whether a push notification token is currently stored.
+   */
+  async hasNotificationToken(): Promise<boolean> {
+    return await LinkzlyReactNative.hasNotificationToken();
+  }
+
+  /**
+   * Clear the stored push token locally and revoke it server-side
+   * (e.g. on logout or when notifications are disabled).
+   */
+  async clearNotificationToken(): Promise<void> {
+    await LinkzlyReactNative.clearNotificationToken();
   }
 
   /**

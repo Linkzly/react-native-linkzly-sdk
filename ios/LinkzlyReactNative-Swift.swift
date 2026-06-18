@@ -236,6 +236,22 @@ public class LinkzlyReactNativeSwift: NSObject {
          }
     }
 
+    @objc(trackRefundWithParameters:resolver:rejecter:)
+    public static func trackRefund(
+        parameters: [String: Any]?,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.trackRefund(parameters: parameters ?? [:]) { result in
+             switch result {
+             case .success(_):
+                 resolver(["success": true])
+             case .failure(let error):
+                 rejecter("TRACK_REFUND_ERROR", error.localizedDescription, error)
+             }
+         }
+    }
+
     @objc(trackEventBatchWithEvents:resolver:rejecter:)
     public static func trackEventBatch(
         events: [[String: Any]],
@@ -268,6 +284,42 @@ public class LinkzlyReactNativeSwift: NSObject {
     ) {
         let userID = LinkzlySDK.getUserID()
         resolver(userID ?? NSNull())
+    }
+
+    @objc(setNotificationTokenWithToken:resolver:rejecter:)
+    public static func setNotificationToken(
+        token: String,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.setNotificationToken(token)
+        resolver(["success": true])
+    }
+
+    @objc(getNotificationTokenWithResolver:rejecter:)
+    public static func getNotificationToken(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        let token = LinkzlySDK.getNotificationToken()
+        resolver(token ?? NSNull())
+    }
+
+    @objc(hasNotificationTokenWithResolver:rejecter:)
+    public static func hasNotificationToken(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        resolver(LinkzlySDK.hasNotificationToken())
+    }
+
+    @objc(clearNotificationTokenWithResolver:rejecter:)
+    public static func clearNotificationToken(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        LinkzlySDK.clearNotificationToken()
+        resolver(["success": true])
     }
 
     @objc(setTrackingEnabledWithEnabled:resolver:rejecter:)

@@ -140,6 +140,11 @@ declare class LinkzlySDK {
      */
     trackPurchase(parameters: any): Promise<void>;
     /**
+     * Track a refund of a prior purchase
+     * @param parameters Refund parameters (revenue, currency, and the original transactionId)
+     */
+    trackRefund(parameters: any): Promise<void>;
+    /**
      * Track multiple events in a batch
      * @param events Array of events to track
      */
@@ -196,6 +201,27 @@ declare class LinkzlySDK {
      * @returns Current user ID or null
      */
     getUserID(): Promise<any>;
+    /**
+     * Register a push notification device token (APNs on iOS, FCM on Android) with
+     * Linkzly's device registry. Safe to call on every launch — the native SDK throttles
+     * network calls and only registers when something meaningful changed.
+     * @param token The device push token
+     */
+    setNotificationToken(token: any): Promise<void>;
+    /**
+     * Get the currently stored push notification token, if any.
+     * @returns The token or null
+     */
+    getNotificationToken(): Promise<any>;
+    /**
+     * Whether a push notification token is currently stored.
+     */
+    hasNotificationToken(): Promise<any>;
+    /**
+     * Clear the stored push token locally and revoke it server-side
+     * (e.g. on logout or when notifications are disabled).
+     */
+    clearNotificationToken(): Promise<void>;
     /**
      * Enable or disable tracking
      * @param enabled Whether tracking should be enabled

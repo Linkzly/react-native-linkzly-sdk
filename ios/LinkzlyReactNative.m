@@ -59,6 +59,13 @@ RCT_EXPORT_METHOD(trackPurchase : (NSDictionary *)parameters resolver : (
                                               rejecter:reject];
 }
 
+RCT_EXPORT_METHOD(trackRefund : (NSDictionary *)parameters resolver : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift trackRefundWithParameters:parameters
+                                            resolver:resolve
+                                            rejecter:reject];
+}
+
 RCT_EXPORT_METHOD(trackEventBatch : (NSArray *)events resolver : (
     RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift trackEventBatchWithEvents:events
@@ -76,6 +83,28 @@ RCT_EXPORT_METHOD(setUserID : (NSString *)userID resolver : (
 RCT_EXPORT_METHOD(getUserID : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift getUserIDWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(setNotificationToken : (NSString *)token resolver : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift setNotificationTokenWithToken:token
+                                                resolver:resolve
+                                                rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(getNotificationToken : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift getNotificationTokenWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(hasNotificationToken : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift hasNotificationTokenWithResolver:resolve rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(clearNotificationToken : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift clearNotificationTokenWithResolver:resolve rejecter:reject];
 }
 
 RCT_EXPORT_METHOD(setTrackingEnabled : (BOOL)enabled resolver : (
