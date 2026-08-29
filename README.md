@@ -13,7 +13,7 @@ LinkzlySDK is a React Native wrapper for deep linking and attribution tracking. 
 - 🎯 **Deferred Deep Linking** - Match users to campaigns after install
 - 👤 **User Identification** - Associate events with specific users
 - 🤝 **Affiliate Attribution** - Track affiliate clicks with S2S postback support
-- 🔔 **Push Notifications** - Firebase Cloud Messaging integration
+- 🔔 **Push Notifications** - Device token registration for any provider, plus FCM broadcast topics
 - 🎮 **Gaming Intelligence** - Batch event tracking for games with session management
 - 📤 **Event Queue Management** - Offline queuing with manual flush controls
 - 🔐 **Privacy-First** - Opt-in/opt-out tracking controls
@@ -521,16 +521,23 @@ if (clickId) {
 
 ## Push Notification Support
 
-The SDK exposes **two independent push features** — most apps that target individual users want the first one:
+The SDK exposes **two push features**. They are not independent: broadcast delivery is unlocked by device token registration, so start with the first one.
 
 | Feature | Methods | What it does | When to use |
 |---|---|---|---|
 | **Device token registration** | `setNotificationToken` / `getNotificationToken` / `hasNotificationToken` / `clearNotificationToken` | Registers this device's **APNs/FCM token** in Linkzly's device registry so campaigns can target the specific device/user. Works with **any** push provider. | You want Linkzly to send (or target) notifications to individual devices/users. |
-| **Broadcast topic subscription** | `initializePush` / `disablePush` | Subscribes the device to a shared **FCM broadcast topic** for "send to All" campaigns. FCM-only, via runtime reflection. | You only need broadcast-to-everyone campaigns and use Firebase Cloud Messaging. |
+| **Broadcast topic subscription** | `initializePush` / `disablePush` | Subscribes the device to its **per-(Smart App, platform) FCM topic** for "send to All" campaigns. The topic name comes from a successful `setNotificationToken` registration — `initializePush()` alone is a no-op until then. FCM-only, via runtime reflection. | You need broadcast-to-everyone campaigns and use Firebase Cloud Messaging. |
 
-The two are not mutually exclusive, but they solve different problems. Start with **device token registration** below.
+**Registering a token is the whole setup.** A successful `setNotificationToken()` subscribes the device to its broadcast topic immediately, and the native SDK re-subscribes on every launch. `initializePush()` / `disablePush()` are recovery and opt-out controls, not the mechanism.
 
-> **Requires native SDK support.** `setNotificationToken` and the related methods bridge to the native iOS/Android SDKs. They need **iOS `LinkzlySDK ≥ 1.0.3`** (CocoaPods) and **Android `com.github.Linkzly:linkzly-android-sdk ≥ 1.0.5`** (JitPack) — both of which this React Native package already pins. Earlier native versions do not include these methods.
+> **Native SDK versions.** Push lives in the native iOS/Android SDKs. This package already pins versions that support it — iOS `LinkzlySDK` 1.0.7+ and Android `linkzly-android-sdk` 1.0.9+ — so there is nothing extra to add.
+>
+> If the build can't find these methods, or broadcasts never arrive, your project is probably still resolving an older native SDK from a lockfile or cache:
+>
+> ```bash
+> cd ios && pod update LinkzlySDK && cd ..
+> cd android && ./gradlew --refresh-dependencies && cd ..
+> ```
 
 ### Registering a device push token
 
@@ -564,35 +571,49 @@ const token = await LinkzlySDK.getNotificationToken(); // string | null
 const has = await LinkzlySDK.hasNotificationToken();    // boolean
 ```
 
-### Broadcast topic subscription (optional, FCM-only)
+### Broadcast topic subscription (FCM-only)
 
-Use this only if you want "send to All" broadcast campaigns and your app uses Firebase Cloud Messaging.
+Relevant if you want "send to All" broadcast campaigns and your app uses Firebase Cloud Messaging.
 
 #### Prerequisites
 
 - Firebase Cloud Messaging integrated in your React Native app (e.g., `@react-native-firebase/messaging`)
-- Linkzly SDK configured and initialized
+- Firebase live **before** you call `setNotificationToken` — see the ordering note below
+- Linkzly SDK configured, and a successful `setNotificationToken()` registration
 
-> **Note:** `initializePush()` and `disablePush()` are **Firebase Cloud Messaging only**. They subscribe/unsubscribe the device to an FCM broadcast topic using runtime reflection.
+> **Note:** `initializePush()` and `disablePush()` are **Firebase Cloud Messaging only**. They subscribe/unsubscribe the device to its server-assigned FCM broadcast topic (`linkzly_broadcast_<smartAppId>_<platform>`) using runtime reflection. **Broadcast reach requires a successful `setNotificationToken()` registration first** — the topic name is returned by `/api/sdk/devices/register`. Calling `initializePush()` alone does not receive broadcasts.
 >
 > If your app uses **OneSignal**, **Braze**, or another push provider, you do **not** need to call these methods. Your provider's own SDK handles device registration and subscriptions. The Linkzly backend supports multiple push providers and will deliver campaigns through whichever provider is configured in the Linkzly Console.
 
 #### Setup
 
-Call `initializePush()` once on app startup, after both Firebase and Linkzly SDK are configured:
+There is no separate broadcast setup call. Register the token and the subscribe happens for you — just make sure Firebase is live first:
 
 ```typescript
+import messaging from '@react-native-firebase/messaging';
 import LinkzlySDK from '@linkzly/react-native-sdk';
 
-// After configuring both SDKs
+// 1. Firebase must be live before the token is registered, or the topic is
+//    stored but the subscribe fails. @react-native-firebase auto-initializes
+//    the default app from google-services.json / GoogleService-Info.plist, so
+//    there is usually nothing to call here — but if you initialize Firebase
+//    manually, do it before step 4.
+// 2. Configure Linkzly
 await LinkzlySDK.configure('YOUR_SDK_KEY');
 
-const success = await LinkzlySDK.initializePush();
-if (success) {
-  console.log('Push notifications enabled');
-} else {
-  console.warn('Firebase Messaging not available');
-}
+// 3. Ask for permission, then forward the token.
+await messaging().requestPermission();
+const token = await messaging().getToken();
+
+// 4. This is what enables broadcasts: registration stores the topic and
+//    subscribes to it.
+await LinkzlySDK.setNotificationToken(token);
+```
+
+`initializePush()` re-subscribes to the topic stored by the last successful `setNotificationToken()` registration. That makes it a **recovery call** for two situations: you unsubscribed from the topic yourself, or registration succeeded while Firebase Messaging was not yet live so the topic was stored but the subscribe failed. If registration has never succeeded there is no stored topic and it returns `false` — fix the registration instead.
+
+```typescript
+const resubscribed = await LinkzlySDK.initializePush();
 ```
 
 #### Disabling Push
@@ -601,18 +622,26 @@ if (success) {
 await LinkzlySDK.disablePush();
 ```
 
+> **`disablePush()` is session-scoped, not a durable opt-out.** It unsubscribes, but the stored topic and token are kept, so the next launch re-subscribes. For a permanent opt-out use `clearNotificationToken()` — it revokes the token server-side and clears the stored topic.
+
 #### How It Works
 
-- `initializePush()` subscribes the device to a Linkzly broadcast topic via FCM
+- A successful `setNotificationToken()` returns the device's topic (`linkzly_broadcast_<smartAppId>_<platform>`), stores it, and subscribes to it
+- The native SDK re-subscribes on every launch, so a deferred or lost subscribe self-heals
+- Topics are scoped per Smart App and platform, so a campaign only reaches the app it selected — the old shared `linkzly_broadcast` topic is unsubscribed automatically
+- `initializePush()` re-subscribes to the stored topic; it does nothing until one exists
 - No Firebase dependency is added to the Linkzly SDK itself — it uses runtime reflection
-- If Firebase Messaging is not available, the method returns `false` safely (no crash)
-- Push campaigns sent from Linkzly Console targeting "All" users are delivered via this topic
+- If Firebase Messaging is not available, the methods return `false` safely (no crash)
 
 #### Troubleshooting
 
-- `initializePush()` returns `false` — Firebase Messaging not found in your app
-- Notifications not received — Ensure Firebase is initialized before calling `initializePush()`
-- Call `initializePush()` once on app startup, after both Firebase and Linkzly SDK are configured
+| Symptom | Likely cause |
+|---|---|
+| `initializePush()` returns `false` | No topic stored yet — `setNotificationToken()` has not completed successfully. Or Firebase Messaging is not in your app. |
+| Broadcasts never arrive | The device never registered. Check that `setNotificationToken()` was called with a real APNs/FCM token and that the registry call succeeded. |
+| Broadcasts arrive only after a restart | Firebase was not live when the token registered, so the topic was stored but the subscribe failed. Initialize Firebase earlier, or call `initializePush()` once Firebase is ready. |
+| Notifications stop after a "disable" | `disablePush()` only lasts the session. Use `clearNotificationToken()` for a durable opt-out. |
+| Wrong app receives a campaign | The device is still on the legacy shared topic — it is dropped on the next successful registration against a current native SDK. |
 
 ## Gaming Intelligence
 
@@ -955,8 +984,8 @@ When running in `Environment.DEVELOPMENT`, you should see:
 | `getNotificationToken()` | `Promise<string \| null>` | Get the currently stored push token |
 | `hasNotificationToken()` | `Promise<boolean>` | Whether a push token is stored |
 | `clearNotificationToken()` | `Promise<void>` | Clear the token locally and revoke it server-side (logout) |
-| `initializePush()` | `Promise<boolean>` | Subscribe to FCM broadcast topic |
-| `disablePush()` | `Promise<boolean>` | Unsubscribe from FCM topic |
+| `initializePush()` | `Promise<boolean>` | Re-subscribe to the stored broadcast topic (recovery; no-op before registration) |
+| `disablePush()` | `Promise<boolean>` | Unsubscribe from the broadcast topic for this session (not a durable opt-out) |
 
 ### Gaming Intelligence
 
