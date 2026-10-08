@@ -1,10 +1,12 @@
 # LinkzlySDK for React Native
 
-![npm version](https://img.shields.io/npm/v/@linkzly/react-native-sdk?style=flat-square&color=0066FF)
 ![Platform](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey?style=flat-square)
-![React Native](https://img.shields.io/badge/React%20Native-%3E%3D%200.71-61DAFB?style=flat-square&logo=react)
 
 LinkzlySDK is a React Native wrapper for deep linking and attribution tracking. Track app installs, opens, and custom events while seamlessly handling Universal Links (iOS) and App Links (Android) for deferred deep linking.
+
+Full documentation: https://docs.linkzly.com/docs/sdk-react-native
+
+Related guides: [Tracking events](https://docs.linkzly.com/docs/sdk-tracking-events), [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases), [Integrations setup](https://docs.linkzly.com/docs/sdk-integrations-setup).
 
 ## Features
 
@@ -12,9 +14,10 @@ LinkzlySDK is a React Native wrapper for deep linking and attribution tracking. 
 - 📊 **Attribution Tracking** - Track installs, opens, and custom events
 - 🎯 **Deferred Deep Linking** - Match users to campaigns after install
 - 👤 **User Identification** - Associate events with specific users
-- 🤝 **Affiliate Attribution** - Track affiliate clicks with S2S postback support
-- 🔔 **Push Notifications** - Device token registration for any provider, plus FCM broadcast topics
+- 🤝 **Affiliate Attribution** - Capture and store affiliate click IDs for server-to-server (S2S) conversion tracking
+- 🔔 **Push Notifications** - Registration of the Firebase Cloud Messaging (FCM) registration token, plus FCM broadcast topics
 - 🎮 **Gaming Intelligence** - Batch event tracking for games with session management
+- 💰 **Revenue** - Purchases and refunds with a transaction ID for de-duplication
 - 📤 **Event Queue Management** - Offline queuing with manual flush controls
 - 🔐 **Privacy-First** - Opt-in/opt-out tracking controls
 - 📱 **Advertising Identifiers** - IDFA, GAID, and ATT framework support
@@ -23,14 +26,12 @@ LinkzlySDK is a React Native wrapper for deep linking and attribution tracking. 
 
 ## Requirements
 
-| Component | Minimum Version | Recommended |
-|-----------|----------------|-------------|
-| React Native | 0.71.2+ | 0.73+ |
-| Node.js | 16+ | 18+ |
-| iOS | 12.0+ | 15.0+ |
-| Xcode | 14.0+ | 15.0+ |
-| Android SDK | API 21+ | API 33+ |
-| Kotlin | 1.8+ | 1.9+ |
+| Component | Value |
+|-----------|-------|
+| React Native | Tested on React Native 0.82.1. Declared peer range: `react-native >=0.71.2`, `react >=16.13.1` (versions below 0.82.1 are untested) |
+| Node.js | Declared by the package: `>= 16.0.0` |
+| iOS | Minimum deployment target declared by the SDK: 12.0 |
+| Android | Minimum declared by the SDK: API 21 |
 
 ## Prerequisites
 
@@ -54,23 +55,31 @@ Your SDK key (`slk_` prefix) authenticates your app with Linkzly's servers. You 
 
 ## Installation
 
-### npm / yarn
+### Install from GitHub
+
+**SDK version:** 1.0.17
+
+The package is installed from GitHub. It is not published to the npm registry, so `npm install @linkzly/react-native-sdk` will not find it.
 
 ```bash
 # npm
-npm install @linkzly/react-native-sdk
+npm install github:Linkzly/react-native-linkzly-sdk#1.0.17
 
-# yarn
-yarn add @linkzly/react-native-sdk
+# Yarn 1 (classic)
+yarn add Linkzly/react-native-linkzly-sdk#1.0.17
 ```
+
+The package is installed under the name `@linkzly/react-native-sdk`, which is what you import. The tag `1.0.17` is what you pin; the `version` field inside the installed `package.json` reports a different number (`1.4.6` at this tag), which is expected.
 
 ### iOS Setup
 
 1. Add LinkzlySDK to your `Podfile` (before `use_native_modules!`):
 
 ```ruby
-pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.3'
+pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.7'
 ```
+
+LinkzlySDK is not on CocoaPods Trunk, so the `:git` and `:tag` form is required; without it `pod install` cannot find the spec.
 
 2. Install CocoaPods dependencies:
 
@@ -80,21 +89,19 @@ cd ios && pod install && cd ..
 
 ### Android Setup
 
-Add JitPack repository to root `android/build.gradle`:
+The package's own `android/build.gradle` already declares the JitPack repository and depends on the native Android SDK (`com.github.Linkzly:linkzly-android-sdk:1.0.9`), so a default React Native project needs no change to its Gradle files.
+
+If your project makes Gradle reject repositories declared by libraries (for example `RepositoriesMode.FAIL_ON_PROJECT_REPOS` in `android/settings.gradle`), add JitPack there (this case has not been tested):
 
 ```gradle
-allprojects {
-    repositories {
-        maven { url 'https://jitpack.io' }
-    }
-}
+maven { url 'https://jitpack.io' }
 ```
 
 ### iOS Deep Link Configuration (Required for Warm Start)
 
 For proper deep link handling on iOS when the app is already running (warm start), you must forward URLs to both React Native's `RCTLinkingManager` and `LinkzlySDK` in your AppDelegate.
 
-> **Note:** The setup below works for **both Old Architecture and New Architecture** (React Native 0.71+).
+> **Note:** This setup was tested on React Native 0.82.1.
 
 #### Step 1: Update Bridging Header
 
@@ -233,61 +240,38 @@ function App() {
 }
 ```
 
-The SDK automatically captures deep links from both cold starts and warm starts.
+With the default `autoHandleDeepLinks: true`, `configure` reads the launch URL (`Linking.getInitialURL()`) and listens for `Linking` `url` events, so both cold starts and warm starts reach your listener.
 
 ### Cold Start Handling (App Launched from Link)
 
-For **cold start** deep links (when the app is launched from a terminated state via a URL), you need to check `Linking.getInitialURL()` in addition to setting up the SDK listener:
+A listener added after a deep link was delivered is called straight away with the last deep link data, so subscribing before `configure` is enough. You only need to read `Linking.getInitialURL()` yourself when you turn automatic handling off (`autoHandleDeepLinks: false`) and pass the URL to `handleUniversalLink`:
 
 ```typescript
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Linking } from 'react-native';
 import LinkzlySDK, { Environment } from '@linkzly/react-native-sdk';
 
-function App() {
+export function useManualDeepLinks(): void {
   useEffect(() => {
-    // 1. Set up SDK listener for warm starts
     const unsubscribe = LinkzlySDK.addDeepLinkListener((data) => {
       console.log('Deep link received:', data);
-      handleDeepLink(data);
     });
 
-    // 2. Check for cold start URL (app launched from link)
-    const checkInitialURL = async () => {
+    LinkzlySDK.configure('YOUR_SDK_KEY', Environment.PRODUCTION, {
+      autoHandleDeepLinks: false,
+    }).then(async () => {
       const url = await Linking.getInitialURL();
       if (url) {
-        console.log('Cold start URL:', url);
-        // Parse and handle the URL
-        const params = parseUrlParams(url);
-        handleDeepLink({ url, parameters: params });
+        await LinkzlySDK.handleUniversalLink(url);
       }
-    };
-    checkInitialURL();
-
-    // 3. Configure SDK
-    LinkzlySDK.configure('YOUR_SDK_KEY', Environment.PRODUCTION);
+    });
 
     return () => unsubscribe();
   }, []);
-
-  return <YourApp />;
-}
-
-// Helper to parse URL query parameters
-function parseUrlParams(url: string): Record<string, string> {
-  const params: Record<string, string> = {};
-  const queryIndex = url.indexOf('?');
-  if (queryIndex !== -1) {
-    const queryString = url.substring(queryIndex + 1);
-    new URLSearchParams(queryString).forEach((value, key) => {
-      params[key] = value;
-    });
-  }
-  return params;
 }
 ```
 
-> **Important:** `Linking.getInitialURL()` only works on cold starts. For warm starts (app in background), use `Linking.addEventListener('url')` or the SDK's `addDeepLinkListener`.
+> **Important:** `Linking.getInitialURL()` only works on cold starts. For warm starts (app in background), the SDK's `addDeepLinkListener` receives the link.
 
 ## Deep Link Handling
 
@@ -300,7 +284,13 @@ const unsubscribe = LinkzlySDK.addDeepLinkListener((data) => {
 });
 ```
 
+### Listener Cleanup
+
+`addDeepLinkListener` and `addUniversalLinkListener` return an unsubscribe function. Call it in your cleanup, or call `LinkzlySDK.removeAllListeners()` to drop every listener.
+
 ### Manual Deep Link Handling
+
+`configure` options: `autoHandleDeepLinks` (default `true`) and `autoTrackAppOpens` (default `true`; `configure` tracks an app open in the background).
 
 ```typescript
 LinkzlySDK.configure('YOUR_SDK_KEY', Environment.PRODUCTION, {
@@ -317,50 +307,57 @@ The React Native SDK bridges to the native iOS/Android implementations to automa
 
 ### 1. Lifecycle Events (Automatic)
 
-The SDK automatically tracks application lifecycle events:
+The native SDK automatically tracks application lifecycle events:
 *   **Install**: Tracked on the first launch.
-*   **Open**: Tracked on every app launch.
+*   **Open**: Tracked when the app comes to the foreground after at least 30 seconds away, and once by `configure` unless you pass `autoTrackAppOpens: false`.
+
+Sessions are automatic: the session ends when the app goes to the background. You do not start or end app sessions yourself (the gaming session methods are `startGamingSession` and `endGamingSession`).
 
 ```typescript
 import LinkzlySDK from '@linkzly/react-native-sdk';
 
-// These are called automatically, but can be manually triggered if needed
-await LinkzlySDK.trackInstall(); // First launch only
-await LinkzlySDK.trackOpen();    // Every app launch
+// The SDK sends the install itself on the first launch of a new install, so calling
+// trackInstall on a new install sends a second install event. On iOS, addDeepLinkListener
+// receives the deferred DeepLinkData from the automatic install. On Android the listener
+// is fed only from handled links, so trackInstall is the only way to get it there; call
+// it once, behind your own first-launch flag (the flag stops a third event, not the second).
+await LinkzlySDK.trackInstall();
+
+// The SDK already sends opens itself (when the app returns to the foreground after more than
+// 30 seconds, and from configure unless autoTrackAppOpens is false). Each explicit trackOpen
+// call sends one more open event: call it only when you need the DeepLinkData it returns.
+await LinkzlySDK.trackOpen();
 ```
 
-### 2. Session Management (Manual)
+### 2. Commerce Events
 
-Use these methods to manually control session boundaries.
-
-```typescript
-import LinkzlySDK from '@linkzly/react-native-sdk';
-
-// Start a session
-await LinkzlySDK.startSession();
-
-// End a session
-await LinkzlySDK.endSession();
-```
-
-### 3. Commerce Events
-
-Track revenue and in-app purchases.
+Track revenue and in-app purchases. `revenue`, `currency` and `transactionId` are required; `transactionId` is the de-duplication key (a repeat of the same id is discarded). A refund reuses the original `transactionId`. See [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases).
 
 ```typescript
 import LinkzlySDK from '@linkzly/react-native-sdk';
 
 // Track a purchase
 await LinkzlySDK.trackPurchase({
-  amount: 9.99,
+  revenue: 9.99,
   currency: 'USD',
-  sku: 'premium_monthly'
+  transactionId: 'order-12345',
+  productId: 'premium_monthly',
+  revenueType: 'subscription', // 'iap' | 'subscription' | 'other'
+});
+
+// Track a refund of that purchase
+await LinkzlySDK.trackRefund({
+  revenue: 9.99,
+  currency: 'USD',
+  transactionId: 'order-12345',
 });
 ```
 
-### 4. Custom Events
+### 3. Custom Events
 
-Track any user interaction.
+Track the user actions that matter in your app.
+
+**Register the name first.** A custom event is kept only if its name is registered for the app in the console. An unregistered name is dropped, and on the default batched path the call and the flush still report success. See [Register each name in the console](https://docs.linkzly.com/docs/sdk-tracking-events#register-each-name-in-the-console).
 
 ```typescript
 import LinkzlySDK from '@linkzly/react-native-sdk';
@@ -368,15 +365,11 @@ import LinkzlySDK from '@linkzly/react-native-sdk';
 // Track a custom event
 await LinkzlySDK.trackEvent('tutorial_completed', { step: 5 });
 
-// Example with more parameters
-await LinkzlySDK.trackEvent('purchase_completed', {
-  product_id: '12345',
-  amount: 29.99,
-  currency: 'USD'
-});
+// Example with a parameter
+await LinkzlySDK.trackEvent('signup_completed', { method: 'email' });
 ```
 
-### 5. Batch Tracking
+### 4. Batch Tracking
 
 Track multiple events efficiently in a single call.
 
@@ -412,6 +405,29 @@ console.log(`${count} events pending`);
 - Before critical app transitions (e.g., logout)
 - When you want to ensure events are sent before app termination
 - During testing and debugging
+
+## Debug and Batching Controls
+
+These controls do not work on iOS: on iOS every `LinkzlyDebug` batching call rejects with the error code `DEBUG_ONLY`, because the published iOS SDK does not include the debug class. On Android they work in debuggable app builds only; in a release build they reject with `DEBUG_ONLY` too.
+
+```typescript
+import { LinkzlyDebug } from '@linkzly/react-native-sdk';
+import type { BatchingStrategy } from '@linkzly/react-native-sdk';
+
+export async function tryBatching(): Promise<void> {
+  const strategy: BatchingStrategy = 'all';
+  await LinkzlyDebug.setBatchingStrategy(strategy);
+  await LinkzlyDebug.setBatchSize(5);
+  await LinkzlyDebug.setFlushInterval(60);
+  await LinkzlyDebug.simulateServerConfig({ batchSize: 10, flushInterval: 60, strategy: 'smart' });
+  await LinkzlyDebug.printDebugConfig();
+  const config = await LinkzlyDebug.getDebugConfig(); // { strategy?, batchSize?, flushInterval? } | null
+  console.log(config);
+  await LinkzlyDebug.resetDebugConfig();
+}
+```
+
+`BatchingStrategy` values: `'all'` (batch all events), `'smart'` (batch only custom events; the default), `'instant'` (send every event immediately), `'custom'` (same as `'smart'`). `setBatchSize` takes 1 to 100; `setFlushInterval` takes 10 to 300 seconds. `LinkzlyDebug` also has `getPendingEventCount()` and `flushEvents()`.
 
 ## User Identification
 
@@ -525,8 +541,10 @@ The SDK exposes **two push features**. They are not independent: broadcast deliv
 
 | Feature | Methods | What it does | When to use |
 |---|---|---|---|
-| **Device token registration** | `setNotificationToken` / `getNotificationToken` / `hasNotificationToken` / `clearNotificationToken` | Registers this device's **APNs/FCM token** in Linkzly's device registry so campaigns can target the specific device/user. Works with **any** push provider. | You want Linkzly to send (or target) notifications to individual devices/users. |
+| **Device token registration** | `setNotificationToken` / `getNotificationToken` / `hasNotificationToken` / `clearNotificationToken` | Registers this device's **Firebase Cloud Messaging (FCM) registration token** in Linkzly's device registry so campaigns can target the specific device/user. On iOS as well as Android, pass the token your Firebase Messaging library gives you, never the APNs device token. Devices registered through the SDK are reached through Firebase Cloud Messaging. | You want Linkzly to send (or target) notifications to individual devices/users. |
 | **Broadcast topic subscription** | `initializePush` / `disablePush` | Subscribes the device to its **per-(Smart App, platform) FCM topic** for "send to All" campaigns. The topic name comes from a successful `setNotificationToken` registration — `initializePush()` alone is a no-op until then. FCM-only, via runtime reflection. | You need broadcast-to-everyone campaigns and use Firebase Cloud Messaging. |
+
+Before `configure` has run, `setNotificationToken` is ignored on both iOS and Android (nothing is stored). If your app delays `configure`, for example until the user has consented, call `setNotificationToken` again after `configure` with the current token from your Firebase Messaging library; a call made after `configure` registers normally.
 
 **Registering a token is the whole setup.** A successful `setNotificationToken()` subscribes the device to its broadcast topic immediately, and the native SDK re-subscribes on every launch. `initializePush()` / `disablePush()` are recovery and opt-out controls, not the mechanism.
 
@@ -583,7 +601,7 @@ Relevant if you want "send to All" broadcast campaigns and your app uses Firebas
 
 > **Note:** `initializePush()` and `disablePush()` are **Firebase Cloud Messaging only**. They subscribe/unsubscribe the device to its server-assigned FCM broadcast topic (`linkzly_broadcast_<smartAppId>_<platform>`) using runtime reflection. **Broadcast reach requires a successful `setNotificationToken()` registration first** — the topic name is returned by `/api/sdk/devices/register`. Calling `initializePush()` alone does not receive broadcasts.
 >
-> If your app uses **OneSignal**, **Braze**, or another push provider, you do **not** need to call these methods. Your provider's own SDK handles device registration and subscriptions. The Linkzly backend supports multiple push providers and will deliver campaigns through whichever provider is configured in the Linkzly Console.
+> If your app also uses another push provider for its own delivery, you do **not** need to call these methods for it. Devices registered through the SDK are reached through Firebase Cloud Messaging.
 
 #### Setup
 
@@ -626,7 +644,7 @@ await LinkzlySDK.disablePush();
 
 #### How It Works
 
-- A successful `setNotificationToken()` returns the device's topic (`linkzly_broadcast_<smartAppId>_<platform>`), stores it, and subscribes to it
+- A successful `setNotificationToken()` registration stores the device's topic (`linkzly_broadcast_<smartAppId>_<platform>`) and subscribes to it
 - The native SDK re-subscribes on every launch, so a deferred or lost subscribe self-heals
 - Topics are scoped per Smart App and platform, so a campaign only reaches the app it selected — the old shared `linkzly_broadcast` topic is unsubscribed automatically
 - `initializePush()` re-subscribes to the stored topic; it does nothing until one exists
@@ -638,7 +656,7 @@ await LinkzlySDK.disablePush();
 | Symptom | Likely cause |
 |---|---|
 | `initializePush()` returns `false` | No topic stored yet — `setNotificationToken()` has not completed successfully. Or Firebase Messaging is not in your app. |
-| Broadcasts never arrive | The device never registered. Check that `setNotificationToken()` was called with a real APNs/FCM token and that the registry call succeeded. |
+| Broadcasts never arrive | The device never registered. Check that `setNotificationToken()` was called with a real FCM registration token (on iOS the Firebase token, not the APNs device token) and that the registry call succeeded. |
 | Broadcasts arrive only after a restart | Firebase was not live when the token registered, so the topic was stored but the subscribe failed. Initialize Firebase earlier, or call `initializePush()` once Firebase is ready. |
 | Notifications stop after a "disable" | `disablePush()` only lasts the session. Use `clearNotificationToken()` for a durable opt-out. |
 | Wrong app receives a campaign | The device is still on the legacy shared topic — it is dropped on the next successful registration against a current native SDK. |
@@ -717,6 +735,8 @@ await LinkzlySDK.trackGamingEvent('purchase', {
 }, true);  // immediate = true
 ```
 
+A gaming `purchase` event is game telemetry and is not recorded as revenue; report revenue with `trackPurchase`.
+
 ### Attribution
 
 Link game installs and opens to marketing campaigns:
@@ -767,7 +787,9 @@ await LinkzlySDK.resetGamingTracking();
 ## Privacy Controls
 
 ```typescript
-// Enable/disable all tracking
+// Stop custom events, purchases and refunds
+// (not install, open or session-end events; on iOS trackEventBatch is not stopped;
+// on Android no effect before configure())
 await LinkzlySDK.setTrackingEnabled(false);
 const isEnabled = await LinkzlySDK.isTrackingEnabled();
 
@@ -775,6 +797,8 @@ const isEnabled = await LinkzlySDK.isTrackingEnabled();
 await LinkzlySDK.setAdvertisingTrackingEnabled(true);
 const isAdEnabled = await LinkzlySDK.isAdvertisingTrackingEnabled();
 ```
+
+`setTrackingEnabled(false)` stops custom events, purchases and refunds, and on Android `trackEventBatch`; on iOS `trackEventBatch` is not stopped. It does not stop the install, open and session-end events the SDK sends itself, and on Android it has no effect before `configure`. The SDK sends nothing before `configure`: an app that must send nothing before the user consents delays `configure` until the user has consented, and uses `setTrackingEnabled(false)` afterwards to stop events, purchases and refunds.
 
 ## Advertising Identifiers (IDFA/GAID)
 
@@ -830,9 +854,12 @@ LinkzlySDK.configure('YOUR_SDK_KEY', Environment.DEVELOPMENT);
 ```
 
 **2. Verify Event Tracking:**
+
+Register `test_event` for the app first (see [Register each name in the console](https://docs.linkzly.com/docs/sdk-tracking-events#register-each-name-in-the-console)). Linkzly drops an event whose name is not registered.
+
 ```typescript
 await LinkzlySDK.trackEvent('test_event', { test: true });
-// Check console logs for successful tracking
+// The SDK log only shows that the event was sent. An unregistered name is dropped by Linkzly.
 ```
 
 **3. Test Deep Links:**
@@ -866,7 +893,7 @@ LinkzlySDK.addDeepLinkListener((data) => {
 - [ ] SDK imports without errors
 - [ ] SDK initializes successfully (check console)
 - [ ] Deep link listener configured
-- [ ] Events tracked successfully
+- [ ] Registered `test_event` for the app and sent it (the SDK log only shows the event was sent; an unregistered name is dropped by Linkzly)
 
 **iOS:**
 - [ ] CocoaPods dependencies installed (`pod install`)
@@ -877,8 +904,7 @@ LinkzlySDK.addDeepLinkListener((data) => {
 - [ ] Deep links open the app (test with xcrun)
 
 **Android:**
-- [ ] Native SDK linked in `build.gradle`
-- [ ] Application class registered in AndroidManifest
+- [ ] Android build succeeds (the package links the native SDK itself)
 - [ ] Intent filters configured in AndroidManifest
 - [ ] `MainActivity` handles deep links in `onNewIntent`
 - [ ] `launchMode="singleTask"` set on MainActivity
@@ -910,10 +936,11 @@ When running in `Environment.DEVELOPMENT`, you should see:
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `trackInstall()` | `Promise<DeepLinkData \| null>` | Track app install (auto on first launch) |
-| `trackOpen()` | `Promise<DeepLinkData \| null>` | Track app open |
+| `trackInstall()` | `Promise<DeepLinkData \| null>` | Track app install. The SDK already sends the install on a genuine first launch, so calling this on a new install sends a second install event. On iOS use `addDeepLinkListener` for the deferred data; on Android this call is the only way to get it |
+| `trackOpen()` | `Promise<DeepLinkData \| null>` | Track app open. The SDK already sends opens itself; an explicit call sends an additional open event |
 | `trackEvent(eventName, parameters?)` | `Promise<void>` | Track a custom event |
-| `trackPurchase(parameters?)` | `Promise<void>` | Track a purchase event |
+| `trackPurchase(parameters?)` | `Promise<void>` | Track a purchase (`revenue`, `currency`, `transactionId` required) |
+| `trackRefund(parameters?)` | `Promise<void>` | Track a refund (reuse the original `transactionId`) |
 | `trackEventBatch(events)` | `Promise<boolean>` | Track multiple events in a batch |
 
 ### Deep Link Handling
@@ -941,30 +968,23 @@ When running in `Environment.DEVELOPMENT`, you should see:
 | `getVisitorID()` | `Promise<string>` | Get persistent visitor ID |
 | `resetVisitorID()` | `Promise<void>` | Reset visitor ID (generates new) |
 
-### Session Management
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `startSession()` | `Promise<void>` | Manually start a session |
-| `endSession()` | `Promise<void>` | Manually end a session |
-
 ### Privacy
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `setTrackingEnabled(enabled)` | `Promise<void>` | Enable/disable all tracking |
+| `setTrackingEnabled(enabled)` | `Promise<void>` | Stops or resumes custom events, purchases and refunds. Install, open and session-end events the SDK sends itself are not affected; on iOS `trackEventBatch` is not stopped; on Android it has no effect before `configure` |
 | `isTrackingEnabled()` | `Promise<boolean>` | Check if tracking is enabled |
 | `setAdvertisingTrackingEnabled(enabled)` | `Promise<void>` | Enable/disable IDFA/GAID collection |
 | `isAdvertisingTrackingEnabled()` | `Promise<boolean>` | Check if ad tracking is enabled |
 
-### iOS Specific
+### iOS Only
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `requestTrackingPermission()` | `Promise<string>` | Request ATT permission (iOS 14.5+) |
+| `requestTrackingPermission()` | `Promise<string>` | Request ATT permission (iOS 14.5+); resolves `'unsupported'` on Android |
 | `getIDFA()` | `Promise<string \| null>` | Get current IDFA value |
 | `getATTStatus()` | `Promise<string \| null>` | Get ATT authorization status |
-| `updateConversionValue(value)` | `Promise<boolean>` | Update SKAdNetwork conversion value (0-63) |
+| `updateConversionValue(value)` | `Promise<boolean>` | Update SKAdNetwork conversion value (0-63); resolves `false` on Android |
 
 ### Affiliate Attribution
 
@@ -980,12 +1000,28 @@ When running in `Environment.DEVELOPMENT`, you should see:
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `setNotificationToken(token)` | `Promise<void>` | Register this device's APNs/FCM token in Linkzly's device registry (throttled) |
+| `setNotificationToken(token)` | `Promise<void>` | Register this device's FCM registration token in Linkzly's device registry (throttled); on iOS the Firebase token, not the APNs device token |
 | `getNotificationToken()` | `Promise<string \| null>` | Get the currently stored push token |
 | `hasNotificationToken()` | `Promise<boolean>` | Whether a push token is stored |
 | `clearNotificationToken()` | `Promise<void>` | Clear the token locally and revoke it server-side (logout) |
 | `initializePush()` | `Promise<boolean>` | Re-subscribe to the stored broadcast topic (recovery; no-op before registration) |
 | `disablePush()` | `Promise<boolean>` | Unsubscribe from the broadcast topic for this session (not a durable opt-out) |
+
+### Debug (`LinkzlyDebug`)
+
+Rejects with `DEBUG_ONLY` on iOS; works in debuggable builds on Android.
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `setBatchingStrategy(strategy)` | `Promise<void>` | `'all'`, `'smart'`, `'instant'` or `'custom'` |
+| `setBatchSize(size)` | `Promise<void>` | Events per batch (1-100) |
+| `setFlushInterval(seconds)` | `Promise<void>` | Flush interval (10-300 seconds) |
+| `simulateServerConfig(config)` | `Promise<void>` | Set batch size, flush interval and optional strategy at once |
+| `resetDebugConfig()` | `Promise<void>` | Clear all debug overrides |
+| `printDebugConfig()` | `Promise<void>` | Log the debug configuration to the native console |
+| `getDebugConfig()` | `Promise<DebugBatchConfig \| null>` | Current debug configuration |
+| `getPendingEventCount()` | `Promise<number>` | Queued events (same as on `LinkzlySDK`) |
+| `flushEvents()` | `Promise<boolean>` | Send queued events now (same as on `LinkzlySDK`) |
 
 ### Gaming Intelligence
 
@@ -1042,6 +1078,14 @@ interface AffiliateAttribution {
   timestamp: number | null;
   hasAttribution: boolean;
   source: 'deep_link' | 'stored' | 'none';
+}
+
+type BatchingStrategy = 'all' | 'smart' | 'instant' | 'custom';
+
+interface DebugBatchConfig {
+  strategy?: string;
+  batchSize?: number;
+  flushInterval?: number;
 }
 
 interface GamingTrackingOptions {
@@ -1132,5 +1176,5 @@ MIT
 ## Support
 
 - 📧 Email: support@linkzly.com
-- 📚 Documentation: https://app.linkzly.com
+- 📚 Documentation: https://docs.linkzly.com/docs/sdk-react-native
 - 🐛 Issues: https://github.com/Linkzly/react-native-linkzly-sdk/issues
