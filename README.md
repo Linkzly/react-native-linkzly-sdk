@@ -8,6 +8,10 @@ Full documentation: https://docs.linkzly.com/docs/sdk-react-native
 
 Related guides: [Tracking events](https://docs.linkzly.com/docs/sdk-tracking-events), [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases), [Integrations setup](https://docs.linkzly.com/docs/sdk-integrations-setup).
 
+## Using an AI coding agent
+
+If you use an AI coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Antigravity), give it the Linkzly skill and ask it to add the SDK to your app: `npx skills add Linkzly/skills`. The skill carries these instructions, cut to your platform, and rules for the SDK behaviours that are easy to get wrong. It asks you for your SDK key and never makes one up. See [Set up with an AI agent](https://docs.linkzly.com/docs/sdk-ai-agents).
+
 ## Features
 
 - 🔗 **Universal Links & App Links Support** - Handle deep links automatically
@@ -40,7 +44,7 @@ Before integrating the SDK, set up your app in the Linkzly Console:
 1. Go to **Dashboard > Apps** and click "Register App"
 2. Enter your iOS **Bundle ID** and/or Android **Package Name**
 3. Choose a verification method (Hosted recommended for quick start)
-4. Copy your **SDK Key** from the post-creation wizard or from Manage App > Overview > SDK Configuration
+4. Copy your **SDK Key** from the post-creation wizard or from Manage app > Overview > SDK Configuration
 
 Your SDK key starts with `slk_` and uniquely identifies your app.
 
@@ -49,7 +53,7 @@ Your SDK key starts with `slk_` and uniquely identifies your app.
 Your SDK key (`slk_` prefix) authenticates your app with Linkzly's servers. You can find it in:
 
 - **Post-creation wizard**: Displayed prominently right after creating your app
-- **Dashboard > Apps > Manage App > Overview > SDK Configuration**: Click the eye icon to reveal, or copy directly
+- **Dashboard > Apps > Manage app > Overview > SDK Configuration**: Click the eye icon to reveal, or copy directly
 
 > **Note**: Each app has a unique SDK key. Do not share keys between different apps.
 
@@ -91,10 +95,17 @@ cd ios && pod install && cd ..
 
 The package's own `android/build.gradle` already declares the JitPack repository and depends on the native Android SDK (`com.github.Linkzly:linkzly-android-sdk:1.0.9`), so a default React Native project needs no change to its Gradle files.
 
-If your project makes Gradle reject repositories declared by libraries (for example `RepositoriesMode.FAIL_ON_PROJECT_REPOS` in `android/settings.gradle`), add JitPack there (this case has not been tested):
+If your project sets `RepositoriesMode.FAIL_ON_PROJECT_REPOS` in `android/settings.gradle`, the build stops at the `repositories` block in this package's `android/build.gradle`, and adding JitPack to the settings file does not change that. Set `RepositoriesMode.PREFER_SETTINGS` instead, so that Gradle ignores that block, and list JitPack in the settings file. This was checked in a small Gradle project, not in a full React Native build:
 
 ```gradle
-maven { url 'https://jitpack.io' }
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+  }
+}
 ```
 
 ### iOS Deep Link Configuration (Required for Warm Start)
@@ -242,6 +253,8 @@ function App() {
 
 With the default `autoHandleDeepLinks: true`, `configure` reads the launch URL (`Linking.getInitialURL()`) and listens for `Linking` `url` events, so both cold starts and warm starts reach your listener.
 
+`configure` resolves even when the native SDK refused the key. A key that is not `slk_` followed by at least 40 hex characters (a placeholder, for example) leaves the SDK unconfigured for the life of the app process, and later `configure` calls are ignored. After you put the real key in, stop the app and start it again; a JavaScript reload is not enough.
+
 ### Cold Start Handling (App Launched from Link)
 
 A listener added after a deep link was delivered is called straight away with the last deep link data, so subscribing before `configure` is enough. You only need to read `Linking.getInitialURL()` yourself when you turn automatic handling off (`autoHandleDeepLinks: false`) and pass the URL to `handleUniversalLink`:
@@ -331,7 +344,7 @@ await LinkzlySDK.trackOpen();
 
 ### 2. Commerce Events
 
-Track revenue and in-app purchases. `revenue`, `currency` and `transactionId` are required; `transactionId` is the de-duplication key (a repeat of the same id is discarded). A refund reuses the original `transactionId`. See [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases).
+Track revenue and in-app purchases. `revenue`, `currency` and `transactionId` are required; `transactionId` is the de-duplication key (a repeat of the same id is discarded). A refund reuses the original `transactionId`. Purchases are recorded only when Revenue & LTV is enabled for your organisation. See [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases).
 
 ```typescript
 import LinkzlySDK from '@linkzly/react-native-sdk';
@@ -1140,6 +1153,8 @@ cd ios && pod install && cd ..
 npm run ios     # Run iOS
 npm run android # Run Android
 ```
+
+The example pins an older SDK release in its `package.json` and `Podfile`. Take install lines and versions from this README, not from the example.
 
 ## Troubleshooting
 
