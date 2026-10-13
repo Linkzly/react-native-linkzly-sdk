@@ -822,7 +822,7 @@ import { Platform } from 'react-native';
 
 if (Platform.OS === 'ios') {
   const status = await LinkzlySDK.requestTrackingPermission();
-  // Returns: 'authorized' | 'denied' | 'restricted' | 'notDetermined'
+  // Returns: 'authorized' | 'denied' | 'restricted' | 'notDetermined' | 'unknown'
 
   const idfa = await LinkzlySDK.getIDFA();
   const attStatus = await LinkzlySDK.getATTStatus();
@@ -835,6 +835,17 @@ if (Platform.OS === 'ios') {
 <key>NSUserTrackingUsageDescription</key>
 <string>We use this to provide personalized content and measure ad effectiveness.</string>
 ```
+
+Replace the example text with your own. The permission prompt shows it to the person, so keep it short and specific; iOS adds your app's name itself. The key has to be in `ios/YourApp/Info.plist` before the first `requestTrackingPermission` call: the app crashes if the call runs without it.
+
+**Apple's rules for the request:**
+
+`requestTrackingPermission` hands the request to Apple's App Tracking Transparency framework, so Apple's rules decide what happens:
+
+- **The app has to be active.** iOS shows the prompt only while the app is active. Called earlier, while the app is still starting, no prompt appears and the promise resolves at once with the current status, which is `'notDetermined'` on a new install. Call it from a screen the person has reached.
+- **iOS 14.5 or later.** On an earlier iOS version the promise rejects with the code `UNSUPPORTED_IOS`.
+
+The SDK does not wait for the answer. It reads the IDFA at the moment it sends an event, and `configure` sends the install event on the first launch. So the install event has no IDFA unless the person had already allowed tracking when `configure` ran, and the SDK does not send it again once they do. Events sent after the person allows tracking carry the IDFA.
 
 ## SKAdNetwork Support (iOS 14+)
 
@@ -994,7 +1005,7 @@ When running in `Environment.DEVELOPMENT`, you should see:
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `requestTrackingPermission()` | `Promise<string>` | Request ATT permission (iOS 14.5+); resolves `'unsupported'` on Android |
+| `requestTrackingPermission()` | `Promise<string>` | Request ATT permission (iOS 14.5+); resolves `'unsupported'` on Android; rejects with `UNSUPPORTED_IOS` before iOS 14.5 |
 | `getIDFA()` | `Promise<string \| null>` | Get current IDFA value |
 | `getATTStatus()` | `Promise<string \| null>` | Get ATT authorization status |
 | `updateConversionValue(value)` | `Promise<boolean>` | Update SKAdNetwork conversion value (0-63); resolves `false` on Android |
