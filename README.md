@@ -61,19 +61,24 @@ Your SDK key (`slk_` prefix) authenticates your app with Linkzly's servers. You 
 
 ### Install from GitHub
 
-**SDK version:** 1.0.18
+**SDK version:** 1.0.19
 
 The package is installed from GitHub. It is not published to the npm registry, so `npm install @linkzly/react-native-sdk` will not find it.
 
 ```bash
 # npm
-npm install github:Linkzly/react-native-linkzly-sdk#1.0.18
+npm install github:Linkzly/react-native-linkzly-sdk#1.0.19
 
 # Yarn 1 (classic)
-yarn add Linkzly/react-native-linkzly-sdk#1.0.18
+yarn add Linkzly/react-native-linkzly-sdk#1.0.19
+
+# Yarn 2 or later (works from tag 1.0.19)
+yarn add @linkzly/react-native-sdk@github:Linkzly/react-native-linkzly-sdk#1.0.19
 ```
 
-The package is installed under the name `@linkzly/react-native-sdk`, which is what you import. The tag `1.0.18` is what you pin; the `version` field inside the installed `package.json` reports a different number (`1.4.7` at this tag), which is expected.
+On Yarn 2 or later, if the install stops with a message about `approvedGitRepositories`, add `https://github.com/Linkzly/*` to that list in your `.yarnrc.yml`.
+
+The package is installed under the name `@linkzly/react-native-sdk`, which is what you import. The tag `1.0.19` is what you pin; the `version` field inside the installed `package.json` reports a different number (`1.4.8` at this tag), which is expected.
 
 ### iOS Setup
 

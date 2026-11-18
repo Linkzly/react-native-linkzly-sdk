@@ -1,6 +1,6 @@
 {
   "name": "@linkzly/react-native-sdk",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "Linkzly React Native SDK for deep linking and attribution tracking",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
@@ -31,7 +31,6 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "build": "bob build",
-    "prepack": "bob build",
     "prepublishOnly": "bob build",
     "release": "release-it",
     "bootstrap": "yarn install"
