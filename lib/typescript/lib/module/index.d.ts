@@ -98,16 +98,6 @@ declare class LinkzlySDKDebugClass {
     flushEvents(): Promise<any>;
 }
 declare const linkzlySDK: LinkzlySDK;
-/**
- * Batching strategy options
- * - "all" - Batch ALL events (install, open, purchase, custom)
- * - "smart" - Smart batching: only custom events (DEFAULT)
- * - "instant" - Send ALL events instantly (no batching)
- * - "custom" - Same as "smart"
- */
-/**
- * Debug batch configuration
- */
 declare class LinkzlySDK {
     static BACKEND_ATTRIBUTION_TIMEOUT_MS: number;
     static URL_PROCESSING_DEDUP_WINDOW_MS: number;
@@ -153,24 +143,34 @@ declare class LinkzlySDK {
     /**
      * Track a custom event
      * @param eventName Name of the event
-     * @param parameters Optional event parameters
+     * @param parameters Optional event parameters. A Date is sent as ISO 8601 UTC
+     *   text; null/undefined are left out; NaN, Infinity, an invalid Date, a BigInt
+     *   or an unsupported object is left out with a warning. Never throws.
      */
     trackEvent(eventName: any, parameters: any): Promise<void>;
     /**
      * Track a purchase event
-     * @param parameters Purchase event parameters (e.g., amount, currency, items)
+     * @param parameters Purchase event parameters (e.g., amount, currency, items).
+     *   The whole map goes to the native SDK unchanged. Optional keys it reads:
+     *   `environment` (for example `sandbox` or `production`),
+     *   `originalTransactionId` / `original_transaction_id`,
+     *   `isRenewal` / `is_renewal` (boolean).
      */
     trackPurchase(parameters: any): Promise<void>;
     /**
      * Track a refund of a prior purchase
-     * @param parameters Refund parameters (revenue, currency, and the original transactionId)
+     * @param parameters Refund parameters (revenue, currency, and the original transactionId).
+     *   The whole map goes to the native SDK unchanged. The optional key
+     *   `refundId` / `refund_id` names the refund.
      */
     trackRefund(parameters: any): Promise<void>;
     /**
      * Track multiple events in a batch
-     * @param events Array of events to track
+     * @param events Array of events to track. Properties follow the same rules
+     *   as trackEvent.
+     * @returns true if the native SDK reports success; false otherwise. Never throws.
      */
-    trackEventBatch(events: any): Promise<any>;
+    trackEventBatch(events: any): Promise<boolean>;
     /**
      * Manually flush pending events to the server
      *
@@ -266,8 +266,33 @@ declare class LinkzlySDK {
     /**
      * Update SKAdNetwork conversion value (iOS 14+ only)
      * @param value Conversion value (0-63)
+     * @param coarseValue Optional coarse value: 'low', 'medium' or 'high'
+     *   (iOS 16.1+; on an older iOS only the fine value is sent). Any other
+     *   word is ignored and only the fine value is sent.
+     * @param lockWindow Optional. With a valid `coarseValue`, locks the
+     *   postback window. Ignored without one.
      */
-    updateConversionValue(value: any): Promise<any>;
+    updateConversionValue(value: any, coarseValue: any, lockWindow: any): Promise<any>;
+    /**
+     * Tell the SDK what the user agreed to. Only the fields you pass are changed;
+     * a field you leave out keeps its stored value, and an empty object does
+     * nothing. Until the first call the SDK sends no consent at all.
+     *
+     * - Every later event carries the consent as it was when the event was created.
+     * - While `analytics` is 'denied' the SDK creates no events.
+     * - With `adUserData` 'denied' the SDK sends no advertising ID.
+     * - A denial is also sent to Linkzly's server. A grant is never sent to the
+     *   server's current-state endpoint (it only tightens), so calling this with
+     *   'granted' cannot undo a denial already recorded on the server.
+     *
+     * Rejects with code `INVALID_CONSENT`, before anything reaches the native
+     * SDK, when a field is not 'granted', 'denied' or 'unspecified'.
+     */
+    setConsent(consent: any): Promise<void>;
+    /**
+     * The consent you have set, or null if `setConsent` was never called.
+     */
+    getConsent(): Promise<any>;
     /**
      * Request App Tracking Transparency permission (iOS 14.5+ only)
      * @returns ATT status: 'authorized', 'denied', 'restricted', or 'notDetermined'

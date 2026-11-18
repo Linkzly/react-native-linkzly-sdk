@@ -34,7 +34,7 @@ If you use an AI coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Antig
 |-----------|-------|
 | React Native | Tested on React Native 0.82.1. Declared peer range: `react-native >=0.71.2`, `react >=16.13.1` (versions below 0.82.1 are untested) |
 | Node.js | Declared by the package: `>= 16.0.0` |
-| iOS | Minimum deployment target declared by the SDK: 12.0 |
+| iOS | Minimum deployment target declared by the SDK: 15.0 |
 | Android | Minimum declared by the SDK: API 21 |
 
 ## Prerequisites
@@ -61,26 +61,26 @@ Your SDK key (`slk_` prefix) authenticates your app with Linkzly's servers. You 
 
 ### Install from GitHub
 
-**SDK version:** 1.0.17
+**SDK version:** 1.0.18
 
 The package is installed from GitHub. It is not published to the npm registry, so `npm install @linkzly/react-native-sdk` will not find it.
 
 ```bash
 # npm
-npm install github:Linkzly/react-native-linkzly-sdk#1.0.17
+npm install github:Linkzly/react-native-linkzly-sdk#1.0.18
 
 # Yarn 1 (classic)
-yarn add Linkzly/react-native-linkzly-sdk#1.0.17
+yarn add Linkzly/react-native-linkzly-sdk#1.0.18
 ```
 
-The package is installed under the name `@linkzly/react-native-sdk`, which is what you import. The tag `1.0.17` is what you pin; the `version` field inside the installed `package.json` reports a different number (`1.4.6` at this tag), which is expected.
+The package is installed under the name `@linkzly/react-native-sdk`, which is what you import. The tag `1.0.18` is what you pin; the `version` field inside the installed `package.json` reports a different number (`1.4.7` at this tag), which is expected.
 
 ### iOS Setup
 
 1. Add LinkzlySDK to your `Podfile` (before `use_native_modules!`):
 
 ```ruby
-pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.7'
+pod 'LinkzlySDK', :git => 'https://github.com/Linkzly/linkzly-ios-sdk.git', :tag => '1.0.8'
 ```
 
 LinkzlySDK is not on CocoaPods Trunk, so the `:git` and `:tag` form is required; without it `pod install` cannot find the spec.
@@ -93,7 +93,7 @@ cd ios && pod install && cd ..
 
 ### Android Setup
 
-The package's own `android/build.gradle` already declares the JitPack repository and depends on the native Android SDK (`com.github.Linkzly:linkzly-android-sdk:1.0.9`), so a default React Native project needs no change to its Gradle files.
+The package's own `android/build.gradle` already declares the JitPack repository and depends on the native Android SDK (`com.github.Linkzly:linkzly-android-sdk:1.0.10`), so a default React Native project needs no change to its Gradle files.
 
 If your project sets `RepositoriesMode.FAIL_ON_PROJECT_REPOS` in `android/settings.gradle`, the build stops at the `repositories` block in this package's `android/build.gradle`, and adding JitPack to the settings file does not change that. Set `RepositoriesMode.PREFER_SETTINGS` instead, so that Gradle ignores that block, and list JitPack in the settings file. This was checked in a small Gradle project, not in a full React Native build:
 
@@ -561,7 +561,7 @@ Before `configure` has run, `setNotificationToken` is ignored on both iOS and An
 
 **Registering a token is the whole setup.** A successful `setNotificationToken()` subscribes the device to its broadcast topic immediately, and the native SDK re-subscribes on every launch. `initializePush()` / `disablePush()` are recovery and opt-out controls, not the mechanism.
 
-> **Native SDK versions.** Push lives in the native iOS/Android SDKs. This package already pins versions that support it — iOS `LinkzlySDK` 1.0.7+ and Android `linkzly-android-sdk` 1.0.9+ — so there is nothing extra to add.
+> **Native SDK versions.** Push lives in the native iOS/Android SDKs. This package already pins versions that support it — iOS `LinkzlySDK` 1.0.8+ and Android `linkzly-android-sdk` 1.0.10+ — so there is nothing extra to add.
 >
 > If the build can't find these methods, or broadcasts never arrive, your project is probably still resolving an older native SDK from a lockfile or cache:
 >

@@ -6,6 +6,7 @@ import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.linkzly.sdk.LinkzlySDK
 import com.linkzly.sdk.gaming.LinkzlyGamingTracking
+import com.linkzly.sdk.models.ConsentState
 import com.linkzly.sdk.models.DeepLinkData
 import com.linkzly.sdk.models.Environment
 import com.linkzly.sdk.utils.LinkzlySDKDebug
@@ -175,7 +176,7 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun trackEvent(eventName: String, parameters: ReadableMap?, promise: Promise) {
         try {
-            val params = parameters?.toHashMap()?.mapValues { it.value ?: "" }?.map { it.key to it.value }?.toMap() ?: emptyMap<String, Any>()
+            val params = withoutTopLevelNulls(parameters)
             LinkzlySDK.trackEvent(eventName, params)
 
             val result = Arguments.createMap()
@@ -236,7 +237,7 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
             val eventList = mutableListOf<Map<String, Any>>()
 
             for (i in 0 until events.size()) {
-                events.getMap(i)?.toHashMap()?.mapValues { it.value ?: "" }?.map { it.key to it.value }?.toMap()?.let { eventList.add(it) }
+                events.getMap(i)?.let { eventList.add(withoutTopLevelNulls(it)) }
             }
 
             LinkzlySDK.trackEventBatch(eventList) { result ->
@@ -374,6 +375,73 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
         result.putBoolean("success", false)
         result.putString("message", "SKAdNetwork is iOS only")
         promise.resolve(result)
+    }
+
+    @ReactMethod
+    fun updateConversionValueWithCoarse(value: Int, coarseValue: String, lockWindow: Boolean, promise: Promise) {
+        // SKAdNetwork is iOS only, not applicable on Android
+        updateConversionValue(value, promise)
+    }
+
+    /**
+     * Mirrors `LinkzlySDK.setConsent`: only the fields in [consent] are passed on (the rest stay
+     * null, so the SDK keeps its stored value). Every field is checked first; an unknown word
+     * rejects with INVALID_CONSENT and changes nothing.
+     */
+    @ReactMethod
+    fun setConsent(consent: ReadableMap, promise: Promise) {
+        try {
+            val analytics = consentStateFrom(consent, "analytics")
+            val adUserData = consentStateFrom(consent, "adUserData")
+            val adPersonalization = consentStateFrom(consent, "adPersonalization")
+            LinkzlySDK.setConsent(analytics, adUserData, adPersonalization)
+
+            val result = Arguments.createMap()
+            result.putBoolean("success", true)
+            promise.resolve(result)
+        } catch (e: IllegalArgumentException) {
+            promise.reject("INVALID_CONSENT", e.message, e)
+        } catch (e: Exception) {
+            promise.reject("SET_CONSENT_ERROR", e.message, e)
+        }
+    }
+
+    /** Resolves null until a field has been set; the Android SDK has no capturedAt. */
+    @ReactMethod
+    fun getConsent(promise: Promise) {
+        try {
+            val consent = LinkzlySDK.getConsent()
+            if (consent.analytics == null && consent.adUserData == null && consent.adPersonalization == null) {
+                promise.resolve(null)
+                return
+            }
+            val result = Arguments.createMap()
+            consent.analytics?.let { result.putString("analytics", consentWord(it)) }
+            consent.adUserData?.let { result.putString("adUserData", consentWord(it)) }
+            consent.adPersonalization?.let { result.putString("adPersonalization", consentWord(it)) }
+            promise.resolve(result)
+        } catch (e: Exception) {
+            promise.reject("GET_CONSENT_ERROR", e.message, e)
+        }
+    }
+
+    private fun consentStateFrom(consent: ReadableMap, field: String): ConsentState? {
+        if (!consent.hasKey(field) || consent.isNull(field)) return null
+        if (consent.getType(field) != ReadableType.String) {
+            throw IllegalArgumentException("$field must be granted, denied or unspecified")
+        }
+        return when (consent.getString(field)) {
+            "granted" -> ConsentState.GRANTED
+            "denied" -> ConsentState.DENIED
+            "unspecified" -> ConsentState.UNSPECIFIED
+            else -> throw IllegalArgumentException("$field must be granted, denied or unspecified")
+        }
+    }
+
+    private fun consentWord(state: ConsentState): String = when (state) {
+        ConsentState.GRANTED -> "granted"
+        ConsentState.DENIED -> "denied"
+        ConsentState.UNSPECIFIED -> "unspecified"
     }
 
     @ReactMethod
@@ -841,6 +909,17 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             promise.reject("DEBUG_GET_CONFIG_ERROR", e.message, e)
         }
+    }
+
+    // Event properties for the native SDK. A top-level null is left out (it
+    // used to become ""). toHashMap() already keeps nested nulls as null.
+    private fun withoutTopLevelNulls(map: ReadableMap?): Map<String, Any> {
+        val out = HashMap<String, Any>()
+        if (map == null) return out
+        for ((key, value) in map.toHashMap()) {
+            if (value != null) out[key] = value
+        }
+        return out
     }
 
     private fun convertMapToWritableMap(map: Map<String, Any>): WritableMap {

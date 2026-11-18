@@ -137,6 +137,28 @@ RCT_EXPORT_METHOD(updateConversionValue : (NSInteger)value resolver : (
                                                  rejecter:reject];
 }
 
+RCT_EXPORT_METHOD(updateConversionValueWithCoarse : (NSInteger)value coarseValue : (
+    NSString *)coarseValue lockWindow : (BOOL)lockWindow resolver : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift updateConversionValueWithValue:value
+                                              coarseValue:coarseValue
+                                               lockWindow:lockWindow
+                                                 resolver:resolve
+                                                 rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(setConsent : (NSDictionary *)consent resolver : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift setConsentWithConsent:consent
+                                        resolver:resolve
+                                        rejecter:reject];
+}
+
+RCT_EXPORT_METHOD(getConsent : (RCTPromiseResolveBlock)
+                      resolve rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift getConsentWithResolver:resolve rejecter:reject];
+}
+
 RCT_EXPORT_METHOD(requestTrackingPermission : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift requestTrackingPermissionWithResolver:resolve

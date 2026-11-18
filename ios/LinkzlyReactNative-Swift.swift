@@ -1,5 +1,6 @@
 import Foundation
 import Linkzly
+import StoreKit
 
 @objc(LinkzlyReactNativeSwift)
 public class LinkzlyReactNativeSwift: NSObject {
@@ -372,6 +373,104 @@ public class LinkzlyReactNativeSwift: NSObject {
         } else {
             rejecter("UNSUPPORTED_IOS", "SKAdNetwork is only available on iOS 14+", nil)
         }
+    }
+
+    /// Same as `updateConversionValue(value:)` plus an SKAdNetwork coarse value (iOS 16.1+).
+    /// An unknown word, or an iOS older than 16.1, sends the fine value alone.
+    @objc(updateConversionValueWithValue:coarseValue:lockWindow:resolver:rejecter:)
+    public static func updateConversionValue(
+        value: Int,
+        coarseValue: String,
+        lockWindow: Bool,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        if #available(iOS 16.1, *), let coarse = coarseConversionValue(from: coarseValue) {
+            if lockWindow {
+                LinkzlySDK.updateConversionValue(value, coarseValue: coarse, lockWindow: true) { success in
+                    resolver(["success": success])
+                }
+            } else {
+                LinkzlySDK.updateConversionValue(value, coarseValue: coarse) { success in
+                    resolver(["success": success])
+                }
+            }
+            return
+        }
+        updateConversionValue(value: value, resolver: resolver, rejecter: rejecter)
+    }
+
+    @available(iOS 16.1, *)
+    private static func coarseConversionValue(from word: String) -> SKAdNetwork.CoarseConversionValue? {
+        switch word {
+        case "low": return .low
+        case "medium": return .medium
+        case "high": return .high
+        default: return nil
+        }
+    }
+
+    // MARK: - Consent
+
+    private static let consentFields = ["analytics", "adUserData", "adPersonalization"]
+
+    private static func consentState(from word: String) -> ConsentState? {
+        switch word {
+        case "granted": return .granted
+        case "denied": return .denied
+        case "unspecified": return .unspecified
+        default: return nil
+        }
+    }
+
+    // Comparisons, not a switch: an enum from another module may gain cases.
+    private static func consentWord(_ state: ConsentState) -> String {
+        if state == .granted { return "granted" }
+        if state == .denied { return "denied" }
+        return "unspecified"
+    }
+
+    /// Mirrors `LinkzlySDK.setConsent`: only the fields in `consent` are passed on. Every
+    /// field is checked first; an unknown word rejects with INVALID_CONSENT and changes nothing.
+    @objc(setConsentWithConsent:resolver:rejecter:)
+    public static func setConsent(
+        consent: NSDictionary,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        var parsed: [String: ConsentState] = [:]
+        for field in consentFields {
+            guard let raw = consent[field], !(raw is NSNull) else { continue }
+            guard let word = raw as? String, let state = consentState(from: word) else {
+                rejecter("INVALID_CONSENT", "\(field) must be granted, denied or unspecified", nil)
+                return
+            }
+            parsed[field] = state
+        }
+        LinkzlySDK.setConsent(
+            analytics: parsed["analytics"],
+            adUserData: parsed["adUserData"],
+            adPersonalization: parsed["adPersonalization"]
+        )
+        resolver(["success": true])
+    }
+
+    /// Resolves null until `setConsent` has been called. `capturedAt` is epoch milliseconds.
+    @objc(getConsentWithResolver:rejecter:)
+    public static func getConsent(
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        guard let snapshot = LinkzlySDK.getConsent() else {
+            resolver(nil)
+            return
+        }
+        var result: [String: Any] = [:]
+        if let state = snapshot.analytics { result["analytics"] = consentWord(state) }
+        if let state = snapshot.adUserData { result["adUserData"] = consentWord(state) }
+        if let state = snapshot.adPersonalization { result["adPersonalization"] = consentWord(state) }
+        result["capturedAt"] = Int((snapshot.capturedAt.timeIntervalSince1970 * 1000).rounded())
+        resolver(result)
     }
 
     @objc(requestTrackingPermissionWithResolver:rejecter:)
