@@ -16,12 +16,33 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
 
     private val reactAppContext: ReactApplicationContext = reactContext
 
+    /**
+     * A notification tap that reaches the running activity arrives only in `onNewIntent`: the template's
+     * `singleTask` MainActivity gets it there, and React Native's `ReactActivity` does not set it as the
+     * activity's intent. The SDK's own lifecycle callbacks never see it, so it is passed on here.
+     */
+    private val notificationIntentListener = object : BaseActivityEventListener() {
+        override fun onNewIntent(intent: Intent) {
+            try {
+                LinkzlySDK.handleNotificationIntent(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("LinkzlyReactNative", "handleNotificationIntent failed: ${e.message}")
+            }
+        }
+    }
+
     init {
         latestInstance = this
+        reactContext.addActivityEventListener(notificationIntentListener)
     }
 
     override fun getName(): String {
         return "LinkzlyReactNative"
+    }
+
+    override fun invalidate() {
+        reactAppContext.removeActivityEventListener(notificationIntentListener)
+        super.invalidate()
     }
 
     private fun sendEvent(eventName: String, params: WritableMap?) {
@@ -290,6 +311,29 @@ class LinkzlyReactNativeModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             promise.reject("SET_NOTIFICATION_TOKEN_ERROR", e.message, e)
         }
+    }
+
+    @ReactMethod
+    fun trackNotificationOpen(data: ReadableMap?, actionId: String?, promise: Promise) {
+        // Fire and forget: the promise always resolves, whatever the data holds.
+        // Only string values reach the native SDK.
+        try {
+            val stringData = HashMap<String, Any?>()
+            if (data != null) {
+                val keys = data.keySetIterator()
+                while (keys.hasNextKey()) {
+                    val key = keys.nextKey()
+                    if (data.getType(key) == ReadableType.String) {
+                        stringData[key] = data.getString(key)
+                    }
+                }
+            }
+            val action = if (actionId.isNullOrEmpty()) null else actionId
+            LinkzlySDK.trackNotificationOpen(stringData, action)
+        } catch (e: Throwable) {
+            android.util.Log.e("LinkzlyReactNative", "trackNotificationOpen failed: ${e.message}")
+        }
+        promise.resolve(null)
     }
 
     @ReactMethod

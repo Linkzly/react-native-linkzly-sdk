@@ -223,6 +223,25 @@ declare class LinkzlySDK {
      */
     clearNotificationToken(): Promise<void>;
     /**
+     * Report that the user tapped a Linkzly push notification. Call it from your own
+     * tap handler, after `configure`, with the `data` of the React Native Firebase
+     * remote message (for example from `messaging().onNotificationOpenedApp` and
+     * `messaging().getInitialNotification`). The native SDK reports the open only when
+     * the data carries Linkzly's `campaign_id` or `flow_delivery_id` (a triggered push
+     * also carries `flow_id`); any other notification is ignored.
+     *
+     * Fire and forget: the promise resolves with nothing and never rejects, whatever
+     * happens on the native side, so the call is safe in a tap handler. Called before
+     * `configure`, or while analytics consent is denied, it does nothing.
+     *
+     * @param data The notification's `data` object, with its keys as the server sent
+     *   them. Only string values are passed on; other values are dropped. A missing,
+     *   null or non-object `data` does nothing.
+     * @param actionId The id of the action button the user tapped. Leave it out (or
+     *   pass null or an empty string) for a tap on the notification itself.
+     */
+    trackNotificationOpen(data: any, actionId: any): Promise<void>;
+    /**
      * Enable or disable tracking
      * @param enabled Whether tracking should be enabled
      */

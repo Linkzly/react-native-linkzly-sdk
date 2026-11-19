@@ -92,6 +92,16 @@ RCT_EXPORT_METHOD(setNotificationToken : (NSString *)token resolver : (
                                                 rejecter:reject];
 }
 
+RCT_EXPORT_METHOD(trackNotificationOpen : (NSDictionary *)data
+                      actionId : (NSString *)actionId
+                      resolver : (RCTPromiseResolveBlock)resolve
+                      rejecter : (RCTPromiseRejectBlock)reject) {
+  [LinkzlyReactNativeSwift trackNotificationOpenWithData:data
+                                                actionId:actionId
+                                                resolver:resolve
+                                                rejecter:reject];
+}
+
 RCT_EXPORT_METHOD(getNotificationToken : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift getNotificationTokenWithResolver:resolve rejecter:reject];
@@ -379,6 +389,18 @@ RCT_EXPORT_METHOD(clearAffiliateAttribution : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject) {
   [LinkzlyReactNativeSwift clearAffiliateAttributionWithResolver:resolve
                                                         rejecter:reject];
+}
+
+@end
+
+// RCT_EXPORT_MODULE already defines +load on LinkzlyReactNative, so this one lives in a category
+// (each +load runs on its own). It runs when the app's code is loaded, long before JS calls
+// configure. iOS delivers the tap that launched the app right after didFinishLaunching returns,
+// so the SDK has to be watching the notification center's delegate by then.
+@implementation LinkzlyReactNative (NotificationOpenCapture)
+
++ (void)load {
+  [LinkzlyReactNativeSwift installNotificationOpenCapture];
 }
 
 @end

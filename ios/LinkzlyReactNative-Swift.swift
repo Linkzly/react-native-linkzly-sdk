@@ -17,6 +17,12 @@ public class LinkzlyReactNativeSwift: NSObject {
         setupNotifications()
     }
 
+    /// Called from the Obj-C module's `+load`: starts the SDK's automatic capture of notification
+    /// taps early enough to see the tap that launched the app.
+    @objc public static func installNotificationOpenCapture() {
+        LinkzlySDK.installNotificationOpenCapture()
+    }
+
     // MARK: - Public Methods for Event Emitter Connection
 
     /// Called by Obj-C bridge to connect the event emitter
@@ -295,6 +301,28 @@ public class LinkzlyReactNativeSwift: NSObject {
     ) {
         LinkzlySDK.setNotificationToken(token)
         resolver(["success": true])
+    }
+
+    @objc(trackNotificationOpenWithData:actionId:resolver:rejecter:)
+    public static func trackNotificationOpen(
+        data: NSDictionary?,
+        actionId: String?,
+        resolver: @escaping RCTPromiseResolveBlock,
+        rejecter: @escaping RCTPromiseRejectBlock
+    ) {
+        // Fire and forget: the promise always resolves, whatever the data holds.
+        // Only string keys with string values reach the native SDK.
+        var userInfo: [AnyHashable: Any] = [:]
+        if let data = data {
+            for (key, value) in data {
+                if let key = key as? String, let value = value as? String {
+                    userInfo[key] = value
+                }
+            }
+        }
+        let action = (actionId?.isEmpty ?? true) ? nil : actionId
+        LinkzlySDK.trackNotificationOpen(userInfo: userInfo, actionIdentifier: action)
+        resolver(NSNull())
     }
 
     @objc(getNotificationTokenWithResolver:rejecter:)
