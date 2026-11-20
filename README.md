@@ -679,6 +679,49 @@ await LinkzlySDK.disablePush();
 | Notifications stop after a "disable" | `disablePush()` only lasts the session. Use `clearNotificationToken()` for a durable opt-out. |
 | Wrong app receives a campaign | The device is still on the legacy shared topic — it is dropped on the next successful registration against a current native SDK. |
 
+### Push notification opens
+
+Linkzly counts a device as having opened a push campaign when its user taps the notification. The campaign page in the Linkzly console shows the number. This needs React Native SDK 1.0.20 or later.
+
+**Automatic.** You write no code.
+
+- **Android:** taps on notifications that Android shows itself from an FCM notification message (the system tray, with the app in the background or closed), including the tap that launches the app. The SDK also forwards taps that reach an already-running activity.
+- **iOS:** every tap that goes through your app's `UNUserNotificationCenter` delegate, including local notifications your app schedules itself and the tap that launches the app. Your own handler still runs as before. The SDK sets this up before the app starts.
+
+Only notifications sent by Linkzly count. Their data carries `campaign_id`, or `flow_delivery_id` for triggered pushes. Nothing is sent while analytics consent is denied (`setConsent`). A tap that arrives before `configure` is held in memory and sent after it.
+
+**Explicit call.** On Android, call `trackNotificationOpen(data, actionId?)` from your own tap handler when your app draws the notification itself, and for action buttons. That means a notification your code shows while the app is in the foreground (react-native-push-notification `localNotification`, Notifee or a similar library), and any action button. You rarely need it on iOS. Pass the notification's data and, for a button, its id.
+
+If your app already has one function that runs on every notification tap, add one line at the top of it. In this example the function receives the data, a message id, whether the app was launched by the tap, and the tapped action:
+
+```typescript
+import LinkzlySDK from '@linkzly/react-native-sdk';
+
+function onNotificationClick(
+  data: Record<string, unknown> | undefined,
+  messageId: string,
+  isFromKill: boolean,
+  action?: string
+) {
+  if (data) LinkzlySDK.trackNotificationOpen(data, action || undefined);
+
+  // ...your existing handling
+}
+```
+
+Call it from every path your app taps arrive on, for example react-native-push-notification `onNotification`, Firebase `onNotificationOpenedApp` and `getInitialNotification`. Only string values in `data` are passed on. A tap that reaches the SDK twice within 5 seconds, once automatically and once through this call, is counted once, so it is safe to call on every tap. The call never throws, and it does nothing before `configure`.
+
+**Turning automatic capture off.** Do it in the app's native project. The explicit call still works.
+
+- **iOS:** add the Boolean `LinkzlyAutoTrackNotificationOpens` with the value `NO` to `Info.plist`.
+- **Android:** add this to the `<application>` element of `AndroidManifest.xml`:
+
+```xml
+<meta-data
+    android:name="com.linkzly.sdk.auto_track_notification_opens"
+    android:value="false" />
+```
+
 ## Gaming Intelligence
 
 The Gaming Intelligence module provides high-performance batch event tracking designed for games. It includes automatic session management, event queuing with retry logic, and optional request signing.
@@ -1035,6 +1078,7 @@ When running in `Environment.DEVELOPMENT`, you should see:
 | `clearNotificationToken()` | `Promise<void>` | Clear the token locally and revoke it server-side (logout) |
 | `initializePush()` | `Promise<boolean>` | Re-subscribe to the stored broadcast topic (recovery; no-op before registration) |
 | `disablePush()` | `Promise<boolean>` | Unsubscribe from the broadcast topic for this session (not a durable opt-out) |
+| `trackNotificationOpen(data, actionId?)` | `Promise<void>` | Report that the user tapped a Linkzly notification (needed only for notifications your app draws itself; never rejects) |
 
 ### Debug (`LinkzlyDebug`)
 
