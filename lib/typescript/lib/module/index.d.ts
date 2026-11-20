@@ -246,19 +246,24 @@ declare class LinkzlySDK {
     clearNotificationToken(): Promise<void>;
     /**
      * Report that the user tapped a Linkzly push notification. Call it from your own
-     * tap handler, after `configure`, with the `data` of the React Native Firebase
-     * remote message (for example from `messaging().onNotificationOpenedApp` and
-     * `messaging().getInitialNotification`). The native SDK reports the open only when
-     * the data carries Linkzly's `campaign_id` or `flow_delivery_id` (a triggered push
-     * also carries `flow_id`); any other notification is ignored.
+     * tap handler, after `configure`, with what your notification library handed that
+     * handler, unchanged: a React Native Firebase remote message or its `data`, a
+     * react-native-push-notification notification, a Notifee `detail.notification`, or
+     * the data map itself. The SDK finds the push's own data in it: the object itself,
+     * or one or two levels down under `data`, `userInfo`, `notification` or `payload`,
+     * a JSON string counting as the object it encodes. The native SDK reports the open
+     * only when that data carries Linkzly's `campaign_id` or `flow_delivery_id` (a
+     * triggered push also carries `flow_id`); any other notification is ignored.
      *
      * Fire and forget: the promise resolves with nothing and never rejects, whatever
      * happens on the native side, so the call is safe in a tap handler. Called before
-     * `configure`, or while analytics consent is denied, it does nothing.
+     * `configure`, or while analytics consent is denied, it does nothing: configure the
+     * SDK before your notification library hands over the tap that launched the app.
      *
-     * @param data The notification's `data` object, with its keys as the server sent
-     *   them. Only string values are passed on; other values are dropped. A missing,
-     *   null or non-object `data` does nothing.
+     * @param data The tapped notification, or its data, as your library gave it. Pass
+     *   it unchanged: a copy cut down to the fields your app routes on can lose
+     *   `campaign_id`. Only string values are passed on; other values are dropped.
+     *   Anything that is not an object, or a JSON string of one, does nothing.
      * @param actionId The id of the action button the user tapped. Leave it out (or
      *   pass null or an empty string) for a tap on the notification itself.
      */
