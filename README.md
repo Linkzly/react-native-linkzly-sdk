@@ -351,7 +351,10 @@ await LinkzlySDK.trackOpen();
 
 Track revenue and in-app purchases. `revenue`, `currency` and `transactionId` are required; `transactionId` is the de-duplication key (a repeat of the same id is discarded). A refund reuses the original `transactionId`. Purchases are recorded only when Revenue & LTV is enabled for your organisation. See [Tracking purchases](https://docs.linkzly.com/docs/sdk-tracking-purchases).
 
+On Android, also pass `environment`: `'production'` from release builds, `'sandbox'` from the builds you test purchases with. The sample decides by build type, so a license tester who buys in a release build is sent as `'production'`; if your server checks purchases with Google Play, use its answer instead. On iOS leave it out: the native SDK reads it from the app's receipt. Without it on Android the purchase still counts as revenue, but Linkzly may hold it back from your ad networks. See [Purchase environment](https://docs.linkzly.com/docs/sdk-tracking-purchases#purchase-environment).
+
 ```typescript
+import { Platform } from 'react-native';
 import LinkzlySDK from '@linkzly/react-native-sdk';
 
 // Track a purchase
@@ -361,6 +364,7 @@ await LinkzlySDK.trackPurchase({
   transactionId: 'order-12345',
   productId: 'premium_monthly',
   revenueType: 'subscription', // 'iap' | 'subscription' | 'other'
+  ...(Platform.OS === 'android' ? { environment: __DEV__ ? 'sandbox' : 'production' } : {}),
 });
 
 // Track a refund of that purchase
